@@ -7,6 +7,7 @@ import { VideoEngine } from "./VideoEngine";
 import { Controls } from "./Controls";
 import { TrackInfo } from "./TrackInfo";
 import { PlaylistRail } from "./PlaylistRail";
+import { VisualizerManager } from "../visualizer/VisualizerManager";
 
 export function PlayerShell() {
   const isPlaylistOpen = usePlayerStore(s => s.isPlaylistOpen);
@@ -30,10 +31,7 @@ export function PlayerShell() {
   return (
     <div className="relative w-full h-screen bg-background overflow-hidden">
       {/* Background Layer - Visualizer or Video */}
-      <div className="absolute inset-0">
-        {/* TODO: VisualizerManager - will render ReactiveCanvas or VideoBackground */}
-        <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-background" />
-      </div>
+      <VisualizerManager />
 
       {/* Audio/Video Engines */}
       <AudioEngine />

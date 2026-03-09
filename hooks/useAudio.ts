@@ -51,11 +51,10 @@ export function useAudio(src: string): UseAudioReturn {
         setDuration(howl.duration());
         setIsLoaded(true);
 
-        // Set up Web Audio API analyser
+        // Set up Web Audio API analyser using Howler's public APIs
         try {
-          // Get the Web Audio context from Howler
-          // @ts-expect-error - Accessing internal Howler Web Audio API
-          const ctx = howl._sounds[0]?._node?.context;
+          // Use Howler's shared Web Audio context and master gain
+          const ctx = Howler.ctx;
           if (ctx && ctx.state === 'suspended') {
             ctx.resume(); // Resume if suspended (required for autoplay policies)
           }
@@ -68,11 +67,9 @@ export function useAudio(src: string): UseAudioReturn {
             analyser.fftSize = 512; // 256 bins
             analyser.smoothingTimeConstant = 0.8;
 
-            // Connect to Howler's gain node
-            // @ts-expect-error - Accessing internal Howler Web Audio API
-            const gainNode = howl._sounds[0]?._node?.gainNode;
-            if (gainNode) {
-              gainNode.connect(analyser);
+            // Connect to Howler's master gain node (all sounds route through this)
+            if (Howler.masterGain) {
+              Howler.masterGain.connect(analyser);
               analyser.connect(ctx.destination);
               setAnalyserNode(analyser);
               setStoreAnalyser(analyser);
