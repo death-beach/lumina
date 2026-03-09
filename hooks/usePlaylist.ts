@@ -46,8 +46,12 @@ export function usePlaylist(): UsePlaylistReturn {
   }, [hasPrev, currentTrackIndex, setCurrentTrackIndex]);
 
   const goToTrack = useCallback((index: number) => {
+    console.log("🎵 USEPLAYLIST: goToTrack called with index:", index, "valid range: 0-", tracks.length - 1);
     if (index >= 0 && index < tracks.length) {
+      console.log("🎵 USEPLAYLIST: Setting currentTrackIndex to:", index);
       setCurrentTrackIndex(index);
+    } else {
+      console.log("🎵 USEPLAYLIST: Invalid index, not setting");
     }
   }, [tracks.length, setCurrentTrackIndex]);
 
