@@ -13,6 +13,7 @@ interface UseAudioReturn {
   analyserNode: AnalyserNode | null;
   isLoaded: boolean;
   error: string | null;
+  onEnd: (callback: () => void) => void;
 }
 
 export function useAudio(src: string): UseAudioReturn {
@@ -43,6 +44,7 @@ export function useAudio(src: string): UseAudioReturn {
 
     const howl = new Howl({
       src: [src],
+      format: ['wav', 'mp3', 'ogg'], // Explicitly support WAV
       html5: false, // Use Web Audio API
       volume: isMuted ? 0 : volume,
       onload: () => {
@@ -148,6 +150,12 @@ export function useAudio(src: string): UseAudioReturn {
     }
   }, []);
 
+  const onEnd = useCallback((callback: () => void) => {
+    if (howlRef.current) {
+      howlRef.current.on('end', callback);
+    }
+  }, []);
+
   return {
     play,
     pause,
@@ -159,5 +167,6 @@ export function useAudio(src: string): UseAudioReturn {
     analyserNode,
     isLoaded,
     error,
+    onEnd,
   };
 }

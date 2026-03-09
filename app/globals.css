@@ -28,3 +28,22 @@ body {
   padding: 0;
   overflow: hidden; /* Full-screen experience */
 }
+
+/* Custom slider styles for Lumina controls */
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: var(--lumina-accent);
+  cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: var(--lumina-accent);
+  cursor: pointer;
+  border: none;
+}

@@ -36,44 +36,24 @@ const config: LuminaConfig = {
   tracks: [
     {
       id: "track-01",
-      title: "Glass Meridian",
-      duration: 237,                     // seconds (for display before load)
-      src: "/tracks/01-glass-meridian.mp3",
-      artwork: "/artwork/track-01.jpg",  // optional per-track artwork
+      title: "Your First Track",
+      duration: 180,                     // seconds (update with actual duration)
+      src: "/tracks/track1.mp3",
+      artwork: "/artwork/track1.jpg",    // optional
       visual: {
         type: "reactive",
-        scene: "particles",              // "particles" | "waveform" | "nebula"
-      },
-      lyrics: {
-        type: "timed",
-        src: "/lyrics/01-glass-meridian.vtt",
+        scene: "particles",
       },
     },
     {
       id: "track-02",
-      title: "Low Tide Frequency",
-      duration: 198,
-      src: "/tracks/02-low-tide.mp3",
-      visual: {
-        type: "video",
-        src: "/videos/02-low-tide.mp4",  // MP4 with baked-in audio (replaces audio src)
-        loop: true,
-      },
-      // no lyrics for this track
-    },
-    {
-      id: "track-03",
-      title: "Nautical Ghost",
-      duration: 285,
-      src: "/tracks/03-nautical-ghost.mp3",
+      title: "Your Second Track",
+      duration: 200,                     // seconds (update with actual duration)
+      src: "/tracks/track2.mp3",
+      artwork: "/artwork/track2.jpg",    // optional
       visual: {
         type: "reactive",
         scene: "waveform",
-        colorOverride: "#38bdf8",        // overrides accentColor for this track only
-      },
-      lyrics: {
-        type: "static",
-        text: "These are static lyrics\nthat display as a single block of text.\nNo timing required.",
       },
     },
   ],
