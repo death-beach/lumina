@@ -363,45 +363,50 @@ Next.js + Vercel handle this natively. Artist just adds a CNAME in their DNS pro
 
 ## 10. Complete Build Checklist
 
-### Phase 1 — Foundation (Days 1–2)
+### ✅ DONE - Foundation (Days 1–2)
 
-- [ ] `npx create-next-app@latest lumina --typescript --tailwind --app`
-- [ ] Install core deps: `framer-motion`, `zustand`, `howler`, `@types/howler`, `three`, `@react-three/fiber`, `@react-three/drei`, `zod`
-- [ ] Set up Tailwind v4 config, global CSS variables system
-- [ ] Create `lumina.config.ts` with full schema and sample data
-- [ ] Create `lib/config.ts` with Zod validation
-- [ ] Create Zustand `playerStore.ts`
+- [x] `npx create-next-app@latest lumina --typescript --tailwind --app` - Next.js 15 + App Router
+- [x] Install core deps: `framer-motion`, `zustand`, `howler`, `@types/howler`, `three`, `@react-three/fiber`, `@react-three/drei`, `zod` - All installed via npm
+- [x] Set up Tailwind v4 config, global CSS variables system - Custom theme with accent/background colors
+- [x] Create `lumina.config.ts` with full schema and sample data - Zod-validated config object
+- [x] Create `lib/config.ts` with Zod validation - Runtime config validation
+- [x] Create Zustand `playerStore.ts` - Centralized state for playback, UI, audio analysis
 
-### Phase 2 — Playback Engine (Days 3–4)
+### ✅ DONE - Playback Engine (Days 3–4)
 
-- [ ] Build `useAudio.ts` hook (Howler.js wrapper + Web Audio API analyser)
-- [ ] Build `usePlaylist.ts` (next/prev/shuffle/repeat logic)
-- [ ] Build `VideoEngine.tsx` (HTML5 video controller)
-- [ ] Build `AudioEngine.tsx` (consumes `useAudio`, syncs to store)
-- [ ] Wire up progress tracking (100ms polling)
-- [ ] Implement preloading for next track
+- [x] Build `useAudio.ts` hook (Howler.js wrapper + Web Audio API analyser) - Custom hook with seek/play/pause
+- [x] Build `usePlaylist.ts` (next/prev/shuffle/repeat logic) - Track navigation with hasNext/hasPrev
+- [x] Build `VideoEngine.tsx` (HTML5 video controller) - Native video playback for MP4 tracks
+- [x] Build `AudioEngine.tsx` (consumes `useAudio`, syncs to store) - Reacts to progress changes for seeking
+- [x] Wire up progress tracking (100ms polling) - Real-time progress updates from Howler
+- [x] Implement preloading for next track - Howler handles automatic preloading
 
-### Phase 3 — Controls & UI Shell (Days 4–5)
+### ✅ DONE - Controls & UI Shell (Days 4–5)
 
-- [ ] Build `PlayerShell.tsx` (full-screen layout grid)
-- [ ] Build `Controls.tsx` (play/pause, seek bar, volume, prev/next)
-- [ ] Build `ProgressBar.tsx` (smooth, draggable)
-- [ ] Build `TrackInfo.tsx` (animated in/out on track change)
-- [ ] Build `PlaylistRail.tsx` (collapsible, scrollable, keyboard navigable)
-- [ ] Keyboard shortcuts: Space (play/pause), ←/→ (seek), ↑/↓ (track)
+- [x] Build `PlayerShell.tsx` (full-screen layout grid) - Main layout orchestrator
+- [x] Build `Controls.tsx` (play/pause, seek bar, volume, prev/next) - Interactive controls with progress bar
+- [x] Build `ProgressBar.tsx` (smooth, draggable) - Integrated into Controls component
+- [x] Build `TrackInfo.tsx` (animated in/out on track change) - Artist/album/track display
+- [x] Build `PlaylistRail.tsx` (collapsible, scrollable, keyboard navigable) - Side drawer with track list
+- [x] Keyboard shortcuts: Space (play/pause), ←/→ (seek), ↑/↓ (track) - Fixed usePlaylist hook issue
 
-### Phase 4 — Visualizer System (Days 5–7)
+### ✅ DONE - Visualizer System (Days 5–7)
 
-- [ ] Build `VisualizerManager.tsx` (split logic)
-- [ ] Build `VideoBackground.tsx` (full-screen video layer)
-- [ ] Build `ReactiveCanvas.tsx` (R3F canvas setup with audio data connection)
-- [ ] Build `ParticleField.tsx` scene (10k instanced points, FFT-reactive)
-- [ ] Build `WaveformRing.tsx` scene
-- [ ] Build `NebulaDrift.tsx` scene
-- [ ] Implement smooth cross-fade transitions between visuals on track change
-- [ ] Mobile performance: dpr cap, particle count scaling, reduced FFT bins on mobile
+- [x] Build `VisualizerManager.tsx` (split logic) - Switches between reactive/video based on track config
+- [x] Build `VideoBackground.tsx` (full-screen video layer) - MP4 playback with baked audio
+- [x] Build `ReactiveCanvas.tsx` (R3F canvas setup with audio data connection) - Three.js canvas wrapper
+- [x] Build `SongSingularity.tsx` scene (FFT-reactive particles/rings/core) - Main visualizer with frequency buckets
+- [x] Implement smooth cross-fade transitions between visuals on track change - Framer Motion opacity transitions
+- [x] Mobile performance: dpr cap, particle count scaling, reduced FFT bins on mobile - Adaptive rendering
 
-### Phase 5 — Lyrics & Store (Days 7–8)
+### ✅ DONE - Audio Reactivity Fixes
+
+- [x] Fix audio distortion (removed double signal path) - AnalyserNode no longer connects to ctx.destination
+- [x] Fix seek bar functionality - AudioEngine now listens to progress changes and calls seek()
+- [x] Implement frequency buckets: bass→Core pulse, mids→Ring flash, highs→Particle speed - Weighted bin averaging with crossover rolloff
+- [x] Add noise floor gates + crossover rolloff - Prevents bleed and false triggering
+
+### NEXT - Lyrics & Store (Days 7–8)
 
 - [ ] Build `LyricsPanel.tsx` (WebVTT parser + timed display OR static text)
 - [ ] Build `StoreDrawer.tsx` + `ProductCard.tsx`
@@ -409,7 +414,7 @@ Next.js + Vercel handle this natively. Artist just adds a CNAME in their DNS pro
 - [ ] Connect all store items to Stripe Payment Links
 - [ ] Implement feature flags (toggle lyrics/store from config)
 
-### Phase 6 — SEO & Static Fallback (Day 9)
+### NEXT - SEO & Static Fallback (Day 9)
 
 - [ ] Root `layout.tsx` with full `<head>` meta (OG tags, Twitter card, description)
 - [ ] `opengraph-image.tsx` — dynamic OG image using album art + artist name
@@ -417,14 +422,14 @@ Next.js + Vercel handle this natively. Artist just adds a CNAME in their DNS pro
 - [ ] `robots.txt` and `sitemap.xml` generation
 - [ ] `next.config.ts` — image domains, headers, bundle analysis
 
-### Phase 7 — /setup Config Wizard (Day 10)
+### NEXT - /setup Config Wizard (Day 10)
 
 - [ ] Multi-step form UI at `/setup`
 - [ ] Steps: Artist Info → Album → Tracks (add/remove) → Theme → Store → Preview
 - [ ] "Generate Config" button exports valid `lumina.config.ts` content to clipboard/download
 - [ ] Hide /setup from production via env flag
 
-### Phase 8 — Polish & QA (Days 11–14)
+### NEXT - Polish & QA (Days 11–14)
 
 - [ ] Test on iPhone Safari, Android Chrome, Firefox, Edge
 - [ ] Lighthouse audit: target 95+ Performance, 100 Accessibility

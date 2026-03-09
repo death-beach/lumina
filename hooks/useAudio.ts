@@ -70,7 +70,7 @@ export function useAudio(src: string): UseAudioReturn {
             // Connect to Howler's master gain node (all sounds route through this)
             if (Howler.masterGain) {
               Howler.masterGain.connect(analyser);
-              analyser.connect(ctx.destination);
+              // AnalyserNode is just a tap - no need to connect to destination
               setAnalyserNode(analyser);
               setStoreAnalyser(analyser);
             }

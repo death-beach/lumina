@@ -7,6 +7,7 @@ import { useAudio } from "@/hooks/useAudio";
 
 export function AudioEngine() {
   const isPlaying = usePlayerStore(s => s.isPlaying);
+  const progress = usePlayerStore(s => s.progress);
   const currentTrackIndex = usePlayerStore(s => s.currentTrackIndex);
   const setIsPlaying = usePlayerStore(s => s.setIsPlaying);
   const { currentTrack, nextTrack, hasNext } = usePlaylist();
@@ -15,7 +16,7 @@ export function AudioEngine() {
   const isAudioTrack = currentTrack?.visual.type === "reactive";
   const audioSrc = isAudioTrack ? currentTrack.src : "";
 
-  const { play, pause, isLoaded, error, onEnd } = useAudio(audioSrc);
+  const { play, pause, seek, duration, isLoaded, error, onEnd } = useAudio(audioSrc);
 
   // Sync playback state
   useEffect(() => {
@@ -27,6 +28,14 @@ export function AudioEngine() {
       pause();
     }
   }, [isPlaying, isAudioTrack, isLoaded, play, pause]);
+
+  // Handle seeking
+  useEffect(() => {
+    if (!isAudioTrack || !isLoaded || !duration) return;
+
+    const seekTime = progress * duration;
+    seek(seekTime);
+  }, [progress, duration, isAudioTrack, isLoaded, seek]);
 
 
 

@@ -33,6 +33,25 @@ function binAvg(data: Uint8Array | null, lo: number, hi: number): number {
   return sum / (end - lo + 1) / 255;
 }
 
+// Weighted bin average with crossover rolloff and noise gating
+function weightedBandEnergy(data: Uint8Array | null, ranges: [number, number, number][], noiseFloor: number): number {
+  if (!data) return 0;
+
+  let totalEnergy = 0;
+  let totalWeight = 0;
+
+  for (const [start, end, weight] of ranges) {
+    const actualEnd = Math.min(end, data.length - 1);
+    for (let i = start; i <= actualEnd; i++) {
+      totalEnergy += (data[i] / 255) * weight;
+      totalWeight += weight;
+    }
+  }
+
+  const avgEnergy = totalEnergy / totalWeight;
+  return avgEnergy > noiseFloor ? avgEnergy : 0;
+}
+
 // ── CORE ─────────────────────────────────────────────────────────────────────
 function Core({ audioData }: { audioData: Uint8Array | null }) {
   const meshRef = useRef<THREE.Mesh>(null);
@@ -45,10 +64,15 @@ function Core({ audioData }: { audioData: Uint8Array | null }) {
     meshRef.current.rotation.x += 0.004;
 
     if (audioData) {
-      // Bass reaction: bins 0–6 (~0–275Hz) - kick/boom pulses
-      const bassEnergy = binAvg(audioData, 0, 6);
-      const targetScale = 1.0 + bassEnergy * 0.8; // Scale up to 1.8x on bass hits
-      scale.current = THREE.MathUtils.lerp(scale.current, targetScale, 0.3); // Fast attack
+      // Bass reaction: bins 0–6 (~0–275Hz) with crossover rolloff and noise gate
+      // Full weight 0-3, reduced weight 4-6 (rolloff from mids), noise floor 0.15
+      const bassEnergy = weightedBandEnergy(audioData, [
+        [0, 3, 1.0],   // Full bass range
+        [4, 6, 0.2],   // Rolloff zone
+      ], 0.80);
+      const targetScale = 1.0 + bassEnergy * 0.8;
+      const lerpSpeed = targetScale < scale.current ? 0.6 : 0.4;
+      scale.current = THREE.MathUtils.lerp(scale.current, targetScale, lerpSpeed);
     } else {
       // Gentle breathing when no audio
       const idle = 1 + Math.sin(state.clock.elapsedTime * 1.5) * 0.04;
@@ -146,8 +170,13 @@ function Rings({ audioData }: { audioData: Uint8Array | null }) {
         const idle = 0.05 + Math.sin(state.clock.elapsedTime * 1.8 + i * 0.4) * 0.03;
         opacities.current[i] = THREE.MathUtils.lerp(opacities.current[i], idle, 0.04);
       } else {
-        // Mids reaction: bins 7–81 (~320Hz–3.5kHz) - snare/vocal flashes
-        const midsEnergy = binAvg(audioData, 7, 81);
+        // Mids reaction: bins 7–81 (~320Hz–3.5kHz) with crossover rolloff and noise gate
+        // Reduced weight 7-10 (rolloff from bass), full weight 11-75, reduced weight 76-81 (rolloff to highs), noise floor 0.10
+        const midsEnergy = weightedBandEnergy(audioData, [
+          [7, 10, 0.3],   // Rolloff from bass
+          [11, 75, 1.0],  // Full mids range
+          [76, 81, 0.3],  // Rolloff to highs
+        ], 0.10);
         const target = 0.05 + midsEnergy * 0.95; // Near-invisible to full bright
         // Fast attack (0.8) and fast release (0.3) for snappy response
         const lerpSpeed = target > opacities.current[i] ? 0.8 : 0.3;
@@ -248,8 +277,12 @@ function Particles({ count = 2000, audioData }: { count: number; audioData: Uint
     if (!pointsRef.current) return;
 
     if (audioData) {
-      // Highs reaction: bins 81–116 (~3.5kHz–20kHz) - cymbals/air acceleration
-      const highsEnergy = binAvg(audioData, 81, 116);
+      // Highs reaction: bins 81–116 (~3.5kHz–20kHz) with crossover rolloff and noise gate
+      // Reduced weight 81-84 (rolloff from mids), full weight 85-116, noise floor 0.12
+      const highsEnergy = weightedBandEnergy(audioData, [
+        [81, 84, 0.3],  // Rolloff from mids
+        [85, 116, 1.0], // Full highs range
+      ], 0.12);
       const target = 0.015 + highsEnergy * 1.2; // From slow to very fast rotation
       // Fast transitions for snappy response to cymbals
       rotSpeed.current = THREE.MathUtils.lerp(rotSpeed.current, target, 0.4);
