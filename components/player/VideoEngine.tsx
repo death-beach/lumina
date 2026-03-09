@@ -31,7 +31,7 @@ export function VideoEngine() {
     if (!isVideoTrack && isPlaying) {
       setIsPlaying(false);
     }
-  }, [currentTrackIndex, isVideoTrack, isPlaying, setIsPlaying]);
+  }, [currentTrackIndex, isVideoTrack]); // Removed isPlaying from deps - only run on track changes
 
   // Log errors
   useEffect(() => {
