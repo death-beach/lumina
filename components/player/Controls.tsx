@@ -4,8 +4,6 @@ import { usePlayerStore } from "@/store/playerStore";
 import { usePlaylist } from "@/hooks/usePlaylist";
 
 export function Controls() {
-  console.log("🎛️ CONTROLS: Component rendered");
-
   const {
     isPlaying,
     volume,
@@ -19,12 +17,8 @@ export function Controls() {
 
   const { hasNext, hasPrev, nextTrack, prevTrack } = usePlaylist();
 
-  console.log("🎛️ CONTROLS: Store state - isPlaying:", isPlaying, "volume:", volume, "progress:", progress);
-
   const handlePlayPause = () => {
-    console.log("🎵 PLAY BUTTON CLICKED! Current isPlaying:", isPlaying);
     setIsPlaying(!isPlaying);
-    console.log("🎵 PLAY BUTTON: setIsPlaying called with:", !isPlaying);
   };
 
   const handlePrev = () => {

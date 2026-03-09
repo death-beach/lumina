@@ -26,12 +26,7 @@ export function VideoEngine() {
     }
   }, [isPlaying, isVideoTrack, isLoaded, play, pause]);
 
-  // Handle track changes - pause when switching to audio track
-  useEffect(() => {
-    if (!isVideoTrack && isPlaying) {
-      setIsPlaying(false);
-    }
-  }, [currentTrackIndex, isVideoTrack]); // Removed isPlaying from deps - only run on track changes
+
 
   // Log errors
   useEffect(() => {

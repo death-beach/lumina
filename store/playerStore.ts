@@ -53,26 +53,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   analyserNode: null,
 
   // Basic setters
-  setCurrentTrackIndex: (index) => {
-    console.log("🏪 STORE: setCurrentTrackIndex called with:", index);
-    set({ currentTrackIndex: index });
-  },
-  setIsPlaying: (playing) => {
-    console.log("🏪 STORE: setIsPlaying called with:", playing);
-    set({ isPlaying: playing });
-  },
-  setVolume: (volume) => {
-    console.log("🏪 STORE: setVolume called with:", volume);
-    set({ volume: Math.max(0, Math.min(1, volume)) });
-  },
-  setProgress: (progress) => {
-    console.log("🏪 STORE: setProgress called with:", progress);
-    set({ progress: Math.max(0, Math.min(1, progress)) });
-  },
-  setIsMuted: (muted) => {
-    console.log("🏪 STORE: setIsMuted called with:", muted);
-    set({ isMuted: muted });
-  },
+  setCurrentTrackIndex: (index) => set({ currentTrackIndex: index }),
+  setIsPlaying: (playing) => set({ isPlaying: playing }),
+  setVolume: (volume) => set({ volume: Math.max(0, Math.min(1, volume)) }),
+  setProgress: (progress) => set({ progress: Math.max(0, Math.min(1, progress)) }),
+  setIsMuted: (muted) => set({ isMuted: muted }),
   togglePlaylist: () => set((state) => ({ isPlaylistOpen: !state.isPlaylistOpen })),
   toggleStore: () => set((state) => ({ isStoreOpen: !state.isStoreOpen })),
   toggleLyrics: () => set((state) => ({ isLyricsVisible: !state.isLyricsVisible })),

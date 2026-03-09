@@ -17,8 +17,6 @@ interface UseAudioReturn {
 }
 
 export function useAudio(src: string): UseAudioReturn {
-  console.log("🎵 USEAUDIO: Hook called with src:", src);
-
   const howlRef = useRef<Howl | null>(null);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -27,8 +25,6 @@ export function useAudio(src: string): UseAudioReturn {
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
 
   const { volume, isMuted, setProgress, setAudioContext, setAnalyserNode: setStoreAnalyser } = usePlayerStore();
-
-  console.log("🎵 USEAUDIO: Initial state - duration:", duration, "isLoaded:", isLoaded, "error:", error);
 
   // Initialize Howler instance
   useEffect(() => {
