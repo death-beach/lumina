@@ -46,23 +46,17 @@ export function usePlaylist(): UsePlaylistReturn {
   }, [hasPrev, currentTrackIndex, setCurrentTrackIndex]);
 
   const goToTrack = useCallback((index: number) => {
-    console.log("🎵 USEPLAYLIST: goToTrack called with index:", index, "valid range: 0-", tracks.length - 1);
     if (index >= 0 && index < tracks.length) {
-      console.log("🎵 USEPLAYLIST: Setting currentTrackIndex to:", index);
       setCurrentTrackIndex(index);
-    } else {
-      console.log("🎵 USEPLAYLIST: Invalid index, not setting");
     }
   }, [tracks.length, setCurrentTrackIndex]);
 
   const toggleShuffle = useCallback(() => {
     // TODO: Implement shuffle toggle
-    console.log("Shuffle toggle not implemented yet");
   }, []);
 
   const setRepeat = useCallback((mode: "none" | "all" | "one") => {
     // TODO: Implement repeat mode
-    console.log("Repeat mode not implemented yet:", mode);
   }, []);
 
   // Placeholder for shuffled indices

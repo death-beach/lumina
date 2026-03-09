@@ -48,7 +48,6 @@ export function useAudio(src: string): UseAudioReturn {
       html5: false, // Use Web Audio API
       volume: isMuted ? 0 : volume,
       onload: () => {
-        console.log("🎵 USEAUDIO: Howler onload fired - duration:", howl.duration());
         setDuration(howl.duration());
         setIsLoaded(true);
 
@@ -120,17 +119,12 @@ export function useAudio(src: string): UseAudioReturn {
   }, [volume, isMuted]);
 
   const play = useCallback(() => {
-    console.log("🎵 USEAUDIO: play() called - howlRef.current:", !!howlRef.current, "isLoaded:", isLoaded);
     if (howlRef.current && isLoaded) {
-      console.log("🎵 USEAUDIO: Calling howl.play()");
       howlRef.current.play();
-    } else {
-      console.log("🎵 USEAUDIO: NOT calling howl.play() - conditions not met");
     }
   }, [isLoaded]);
 
   const pause = useCallback(() => {
-    console.log("🎵 USEAUDIO: pause() called");
     if (howlRef.current) {
       howlRef.current.pause();
     }

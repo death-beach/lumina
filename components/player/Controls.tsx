@@ -4,16 +4,14 @@ import { usePlayerStore } from "@/store/playerStore";
 import { usePlaylist } from "@/hooks/usePlaylist";
 
 export function Controls() {
-  const {
-    isPlaying,
-    volume,
-    isMuted,
-    progress,
-    setIsPlaying,
-    setVolume,
-    toggleMute,
-    seekTo,
-  } = usePlayerStore();
+  const isPlaying = usePlayerStore(s => s.isPlaying);
+  const volume = usePlayerStore(s => s.volume);
+  const isMuted = usePlayerStore(s => s.isMuted);
+  const progress = usePlayerStore(s => s.progress);
+  const setIsPlaying = usePlayerStore(s => s.setIsPlaying);
+  const setVolume = usePlayerStore(s => s.setVolume);
+  const toggleMute = usePlayerStore(s => s.toggleMute);
+  const seekTo = usePlayerStore(s => s.seekTo);
 
   const { hasNext, hasPrev, nextTrack, prevTrack } = usePlaylist();
 

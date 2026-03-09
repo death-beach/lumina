@@ -6,7 +6,9 @@ import { usePlaylist } from "@/hooks/usePlaylist";
 import { useAudio } from "@/hooks/useAudio";
 
 export function AudioEngine() {
-  const { isPlaying, currentTrackIndex, setIsPlaying } = usePlayerStore();
+  const isPlaying = usePlayerStore(s => s.isPlaying);
+  const currentTrackIndex = usePlayerStore(s => s.currentTrackIndex);
+  const setIsPlaying = usePlayerStore(s => s.setIsPlaying);
   const { currentTrack, nextTrack, hasNext } = usePlaylist();
 
   // Only use audio if current track is audio type

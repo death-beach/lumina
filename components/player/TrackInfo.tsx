@@ -5,7 +5,7 @@ import { usePlayerStore } from "@/store/playerStore";
 import { usePlaylist } from "@/hooks/usePlaylist";
 
 export function TrackInfo() {
-  const { currentTrackIndex } = usePlayerStore();
+  const currentTrackIndex = usePlayerStore(s => s.currentTrackIndex);
   const { currentTrack, tracks } = usePlaylist();
 
   if (!currentTrack) return null;

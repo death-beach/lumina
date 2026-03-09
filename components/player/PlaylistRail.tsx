@@ -5,10 +5,10 @@ import { usePlayerStore } from "@/store/playerStore";
 import { usePlaylist } from "@/hooks/usePlaylist";
 
 export function PlaylistRail() {
-  const { isPlaylistOpen, togglePlaylist, currentTrackIndex } = usePlayerStore();
+  const isPlaylistOpen = usePlayerStore(s => s.isPlaylistOpen);
+  const togglePlaylist = usePlayerStore(s => s.togglePlaylist);
+  const currentTrackIndex = usePlayerStore(s => s.currentTrackIndex);
   const { tracks, goToTrack } = usePlaylist();
-
-  console.log("🎵 PLAYLISTRAIL: isPlaylistOpen:", isPlaylistOpen, "tracks:", tracks.length);
 
   return (
     <AnimatePresence>
@@ -20,10 +20,7 @@ export function PlaylistRail() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 z-40"
-            onClick={() => {
-              console.log("🎵 PLAYLISTRAIL: Backdrop clicked, calling togglePlaylist");
-              togglePlaylist();
-            }}
+            onClick={togglePlaylist}
           />
 
           {/* Playlist Drawer */}
@@ -39,10 +36,7 @@ export function PlaylistRail() {
               <div className="flex items-center justify-between p-6 border-b border-foreground/10">
                 <h3 className="text-lg font-bold">Playlist</h3>
                 <button
-                  onClick={() => {
-                    console.log("🎵 PLAYLISTRAIL: X button clicked, calling togglePlaylist");
-                    togglePlaylist();
-                  }}
+                  onClick={togglePlaylist}
                   className="p-2 rounded-full hover:bg-accent/20 transition-colors"
                 >
                   ✕
@@ -55,10 +49,7 @@ export function PlaylistRail() {
                   {tracks.map((track, index) => (
                     <motion.button
                       key={track.id}
-                      onClick={() => {
-                        console.log("🎵 PLAYLISTRAIL: Track clicked:", track.title, "index:", index);
-                        goToTrack(index);
-                      }}
+                      onClick={() => goToTrack(index)}
                       className={`w-full text-left p-3 rounded-lg transition-all duration-200 ${
                         index === currentTrackIndex
                           ? "bg-accent text-background shadow-lg"

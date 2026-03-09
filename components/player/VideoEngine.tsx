@@ -6,7 +6,9 @@ import { usePlaylist } from "@/hooks/usePlaylist";
 import { useVideo } from "@/hooks/useVideo";
 
 export function VideoEngine() {
-  const { isPlaying, currentTrackIndex, setIsPlaying } = usePlayerStore();
+  const isPlaying = usePlayerStore(s => s.isPlaying);
+  const currentTrackIndex = usePlayerStore(s => s.currentTrackIndex);
+  const setIsPlaying = usePlayerStore(s => s.setIsPlaying);
   const { currentTrack } = usePlaylist();
 
   // Only render if current track is video type

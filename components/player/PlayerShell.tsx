@@ -9,7 +9,9 @@ import { TrackInfo } from "./TrackInfo";
 import { PlaylistRail } from "./PlaylistRail";
 
 export function PlayerShell() {
-  const { isPlaylistOpen, isStoreOpen, togglePlaylist } = usePlayerStore();
+  const isPlaylistOpen = usePlayerStore(s => s.isPlaylistOpen);
+  const isStoreOpen = usePlayerStore(s => s.isStoreOpen);
+  const togglePlaylist = usePlayerStore(s => s.togglePlaylist);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -19,7 +21,6 @@ export function PlayerShell() {
       // Arrow Left/Right: seek
       // Arrow Up/Down: track navigation
       // Escape: close drawers
-      console.log("Key pressed:", e.key);
     };
 
     window.addEventListener("keydown", handleKeyDown);
