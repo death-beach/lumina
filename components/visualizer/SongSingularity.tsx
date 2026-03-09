@@ -12,12 +12,10 @@ console.warn = (...args) => {
   originalWarn.apply(console, args);
 };
 
-// ── FREQUENCY MAP (fftSize=512, 256 bins, ~172Hz/bin at 44100Hz) ─────────
-// Sub-bass / kick  (0–86Hz)    → bins 0–0
-// Low-mids         (200–900Hz) → bins 1–5
-// High-mids        (900–4kHz)  → bins 5–23
-// Presence         (4k–8kHz)   → bins 23–46
-// Air              (8k–20kHz)  → bins 46–116
+// ── FREQUENCY MAP (fftSize=512, 256 bins, ~43Hz/bin at 44100Hz) ─────────
+// Bass / kick       (0–275Hz)   → bins 0–6
+// Mids / vocals     (320–3.5kHz)→ bins 7–81
+// Highs / cymbals   (3.5k–20kHz)→ bins 81–116
 
 function binPeak(data: Uint8Array | null, lo: number, hi: number): number {
   if (!data) return 0;
@@ -36,7 +34,7 @@ function binAvg(data: Uint8Array | null, lo: number, hi: number): number {
 }
 
 // ── CORE ─────────────────────────────────────────────────────────────────────
-function Core() {
+function Core({ audioData }: { audioData: Uint8Array | null }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const scale = useRef(1.0);
 
@@ -46,9 +44,16 @@ function Core() {
     meshRef.current.rotation.y += 0.008;
     meshRef.current.rotation.x += 0.004;
 
-    // Gentle breathing animation
-    const idle = 1 + Math.sin(state.clock.elapsedTime * 1.5) * 0.04;
-    scale.current = THREE.MathUtils.lerp(scale.current, idle, 0.04);
+    if (audioData) {
+      // Bass reaction: bins 0–6 (~0–275Hz) - kick/boom pulses
+      const bassEnergy = binAvg(audioData, 0, 6);
+      const targetScale = 1.0 + bassEnergy * 0.8; // Scale up to 1.8x on bass hits
+      scale.current = THREE.MathUtils.lerp(scale.current, targetScale, 0.3); // Fast attack
+    } else {
+      // Gentle breathing when no audio
+      const idle = 1 + Math.sin(state.clock.elapsedTime * 1.5) * 0.04;
+      scale.current = THREE.MathUtils.lerp(scale.current, idle, 0.04);
+    }
 
     meshRef.current.scale.setScalar(scale.current);
   });
@@ -109,8 +114,8 @@ function Rings({ audioData }: { audioData: Uint8Array | null }) {
 
     const arr = [];
     for (let i = 0; i < 14; i++) {
-      // Spread across low-mid range (bins 1–23, ~200–4kHz)
-      const bin = 1 + Math.floor((i / 14) * 22);
+      // Spread across mid range (bins 7–81, ~320Hz–3.5kHz)
+      const bin = 7 + Math.floor((i / 14) * 74);
       arr.push({
         radius: 2.2 + seededRandom() * 7,
         tube: 0.012 + seededRandom() * 0.018,
@@ -141,9 +146,11 @@ function Rings({ audioData }: { audioData: Uint8Array | null }) {
         const idle = 0.05 + Math.sin(state.clock.elapsedTime * 1.8 + i * 0.4) * 0.03;
         opacities.current[i] = THREE.MathUtils.lerp(opacities.current[i], idle, 0.04);
       } else {
-        const val = (audioData[rings[i].bin] || 0) / 255;
-        const target = 0.05 + val * 0.95;
-        const lerpSpeed = target > opacities.current[i] ? 0.5 : 0.06;
+        // Mids reaction: bins 7–81 (~320Hz–3.5kHz) - snare/vocal flashes
+        const midsEnergy = binAvg(audioData, 7, 81);
+        const target = 0.05 + midsEnergy * 0.95; // Near-invisible to full bright
+        // Fast attack (0.8) and fast release (0.3) for snappy response
+        const lerpSpeed = target > opacities.current[i] ? 0.8 : 0.3;
         opacities.current[i] = THREE.MathUtils.lerp(opacities.current[i], target, lerpSpeed);
       }
 
@@ -241,13 +248,11 @@ function Particles({ count = 2000, audioData }: { count: number; audioData: Uint
     if (!pointsRef.current) return;
 
     if (audioData) {
-      // Weighted average: higher bands count more
-      const loHigh = binAvg(audioData, 5, 23);    // 900Hz–4kHz,  weight 1
-      const presence = binAvg(audioData, 23, 46); // 4kHz–8kHz,   weight 2
-      const air = binAvg(audioData, 46, 116);     // 8kHz–20kHz,  weight 4
-      const weighted = (loHigh * 1 + presence * 2 + air * 4) / 7;
-      const target = 0.015 + weighted * 0.8;
-      rotSpeed.current = THREE.MathUtils.lerp(rotSpeed.current, target, 0.1);
+      // Highs reaction: bins 81–116 (~3.5kHz–20kHz) - cymbals/air acceleration
+      const highsEnergy = binAvg(audioData, 81, 116);
+      const target = 0.015 + highsEnergy * 1.2; // From slow to very fast rotation
+      // Fast transitions for snappy response to cymbals
+      rotSpeed.current = THREE.MathUtils.lerp(rotSpeed.current, target, 0.4);
     } else {
       rotSpeed.current = THREE.MathUtils.lerp(rotSpeed.current, 0.015, 0.05);
     }
@@ -304,7 +309,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
 
   return (
     <group position={pos}>
-      <Core />
+      <Core audioData={audioData} />
       <Rings audioData={audioData} />
       {particleCount > 0 && <Particles count={particleCount} audioData={audioData} />}
     </group>

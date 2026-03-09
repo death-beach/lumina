@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { usePlayerStore } from "@/store/playerStore";
+import { usePlaylist } from "@/hooks/usePlaylist";
 import { AudioEngine } from "./AudioEngine";
 import { VideoEngine } from "./VideoEngine";
 import { Controls } from "./Controls";
@@ -13,20 +14,56 @@ export function PlayerShell() {
   const isPlaylistOpen = usePlayerStore(s => s.isPlaylistOpen);
   const isStoreOpen = usePlayerStore(s => s.isStoreOpen);
   const togglePlaylist = usePlayerStore(s => s.togglePlaylist);
+  const { nextTrack, prevTrack } = usePlaylist();
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // TODO: Implement keyboard shortcuts
-      // Space: play/pause
-      // Arrow Left/Right: seek
-      // Arrow Up/Down: track navigation
-      // Escape: close drawers
+      // Don't trigger shortcuts if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault();
+          const { isPlaying, setIsPlaying } = usePlayerStore.getState();
+          setIsPlaying(!isPlaying);
+          break;
+
+        case 'ArrowLeft':
+          e.preventDefault();
+          const { progress, seekTo } = usePlayerStore.getState();
+          seekTo(Math.max(0, progress - 0.05)); // Seek back 5%
+          break;
+
+        case 'ArrowRight':
+          e.preventDefault();
+          const { progress: currentProgress, seekTo: seekToRight } = usePlayerStore.getState();
+          seekToRight(Math.min(1, currentProgress + 0.05)); // Seek forward 5%
+          break;
+
+        case 'ArrowUp':
+          e.preventDefault();
+          nextTrack();
+          break;
+
+        case 'ArrowDown':
+          e.preventDefault();
+          prevTrack();
+          break;
+
+        case 'Escape':
+          e.preventDefault();
+          if (isPlaylistOpen) togglePlaylist();
+          // TODO: Close store drawer when implemented
+          break;
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isPlaylistOpen, togglePlaylist, nextTrack, prevTrack]);
 
   return (
     <div className="relative w-full h-screen bg-background overflow-hidden">
