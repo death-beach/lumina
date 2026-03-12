@@ -17,6 +17,8 @@ interface PlayerState {
   // Audio analysis
   audioContext: AudioContext | null;
   analyserNode: AnalyserNode | null;
+  // Per-track durations (seconds), populated by Howler on load and Audio metadata probing
+  trackDurations: Record<string, number>;
 
   // Actions
   setCurrentTrackIndex: (index: number) => void;
@@ -30,6 +32,7 @@ interface PlayerState {
   toggleLyrics: () => void;
   setAudioContext: (ctx: AudioContext | null) => void;
   setAnalyserNode: (node: AnalyserNode | null) => void;
+  setTrackDuration: (trackId: string, duration: number) => void;
 
   // Convenience actions
   play: () => void;
@@ -54,6 +57,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   isLyricsVisible: false,
   audioContext: null,
   analyserNode: null,
+  trackDurations: {},
 
   // Basic setters
   setCurrentTrackIndex: (index) => set({ currentTrackIndex: index }),
@@ -67,6 +71,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   toggleLyrics: () => set((state) => ({ isLyricsVisible: !state.isLyricsVisible })),
   setAudioContext: (ctx) => set({ audioContext: ctx }),
   setAnalyserNode: (node) => set({ analyserNode: node }),
+  setTrackDuration: (trackId, duration) =>
+    set((state) => ({
+      trackDurations: { ...state.trackDurations, [trackId]: duration },
+    })),
 
   // Convenience actions
   play: () => set({ isPlaying: true }),

@@ -11,6 +11,7 @@ export function AudioEngine() {
   const setSeekTarget = usePlayerStore(s => s.setSeekTarget);
   const currentTrackIndex = usePlayerStore(s => s.currentTrackIndex);
   const setIsPlaying = usePlayerStore(s => s.setIsPlaying);
+  const setTrackDuration = usePlayerStore(s => s.setTrackDuration);
   const { currentTrack, nextTrack, hasNext } = usePlaylist();
 
   // Only use audio if current track is audio type
@@ -18,6 +19,13 @@ export function AudioEngine() {
   const audioSrc = isAudioTrack ? currentTrack.src : "";
 
   const { play, pause, seek, duration, isLoaded, error, onEnd } = useAudio(audioSrc);
+
+  // Store actual Howler duration keyed by track id so all components can use it
+  useEffect(() => {
+    if (isLoaded && duration > 0 && currentTrack?.id) {
+      setTrackDuration(currentTrack.id, duration);
+    }
+  }, [duration, isLoaded, currentTrack?.id, setTrackDuration]);
 
   // Sync playback state
   useEffect(() => {

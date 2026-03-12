@@ -34,7 +34,7 @@ export function TrackInfo() {
             {currentTrack.title}
           </div>
           {albumTitle && (
-            <div className="text-sm opacity-70 italic">
+            <div className="text-sm opacity-70">
               {albumTitle}
             </div>
           )}

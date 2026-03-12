@@ -8,15 +8,20 @@ import { AudioEngine } from "./AudioEngine";
 import { VideoEngine } from "./VideoEngine";
 import { Controls } from "./Controls";
 import { TrackInfo } from "./TrackInfo";
+import { LyricsPanel } from "./LyricsPanel";
 import { PlaylistRail } from "./PlaylistRail";
 import { VisualizerManager } from "../visualizer/VisualizerManager";
+import { useLyrics } from "@/hooks/useLyrics";
 
 const IDLE_TIMEOUT_MS = 3000;
 
 export function PlayerShell() {
   const isPlaylistOpen = usePlayerStore(s => s.isPlaylistOpen);
   const isStoreOpen = usePlayerStore(s => s.isStoreOpen);
+  const isLyricsVisible = usePlayerStore(s => s.isLyricsVisible);
   const togglePlaylist = usePlayerStore(s => s.togglePlaylist);
+  const toggleLyrics = usePlayerStore(s => s.toggleLyrics);
+  const { hasLyrics } = useLyrics();
   const { nextTrack, prevTrack } = usePlaylist();
 
   // ── Idle / auto-hide UI ───────────────────────────────────────────────────
@@ -118,10 +123,20 @@ export function PlayerShell() {
           <div className="flex items-center justify-end">
             {/* Top Controls */}
             <div className="flex items-center gap-4">
-              {/* TODO: Info button, Lyrics toggle, Store button */}
-              <button className="p-2 rounded-full bg-accent/20 hover:bg-accent/30 transition-colors">
-                ℹ️
-              </button>
+              {/* Lyrics toggle — only show if current track has lyrics */}
+              {hasLyrics && (
+                <button
+                  onClick={toggleLyrics}
+                  title={isLyricsVisible ? "Hide lyrics" : "Show lyrics"}
+                  className={`p-2 rounded-full transition-colors ${
+                    isLyricsVisible
+                      ? "bg-accent text-background"
+                      : "bg-accent/20 hover:bg-accent/30"
+                  }`}
+                >
+                  ♪
+                </button>
+              )}
               <button
                 onClick={togglePlaylist}
                 className="p-2 rounded-full bg-accent/20 hover:bg-accent/30 transition-colors"
@@ -138,11 +153,8 @@ export function PlayerShell() {
         {/* Track Info - Animated in/out */}
         <TrackInfo />
 
-        {/* Lyrics Panel - Optional overlay */}
-        <div className="absolute top-1/3 right-6 max-w-md pointer-events-auto">
-          {/* TODO: LyricsPanel component */}
-          {/* Only show if lyrics enabled and available */}
-        </div>
+        {/* Lyrics Panel - synced lyrics overlay */}
+        <LyricsPanel />
 
         {/* Bottom Controls */}
         <div className="absolute bottom-0 left-0 right-0 p-6 pointer-events-auto">

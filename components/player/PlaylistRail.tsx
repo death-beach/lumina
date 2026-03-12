@@ -1,14 +1,55 @@
 "use client";
 
+import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlayerStore } from "@/store/playerStore";
 import { usePlaylist } from "@/hooks/usePlaylist";
+import config from "@/lumina.config";
+
+function formatDuration(seconds: number | undefined): string {
+  if (!seconds || isNaN(seconds)) return "--:--";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 
 export function PlaylistRail() {
   const isPlaylistOpen = usePlayerStore(s => s.isPlaylistOpen);
   const togglePlaylist = usePlayerStore(s => s.togglePlaylist);
   const currentTrackIndex = usePlayerStore(s => s.currentTrackIndex);
+  const trackDurations = usePlayerStore(s => s.trackDurations);
+  const setTrackDuration = usePlayerStore(s => s.setTrackDuration);
   const { tracks, goToTrack } = usePlaylist();
+
+  // Probe durations for all tracks that don't have one yet via Audio metadata
+  useEffect(() => {
+    const cleanups: (() => void)[] = [];
+
+    for (const track of tracks) {
+      if (trackDurations[track.id]) continue; // already known
+
+      const audio = new Audio();
+      audio.preload = "metadata";
+
+      const onLoaded = () => {
+        if (audio.duration && isFinite(audio.duration)) {
+          setTrackDuration(track.id, audio.duration);
+        }
+      };
+
+      audio.addEventListener("loadedmetadata", onLoaded);
+      audio.src = track.src;
+
+      cleanups.push(() => {
+        audio.removeEventListener("loadedmetadata", onLoaded);
+        audio.src = "";
+      });
+    }
+
+    return () => cleanups.forEach(fn => fn());
+  // Run once on mount; trackDurations intentionally excluded to avoid re-running after each update
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tracks, setTrackDuration]);
 
   return (
     <AnimatePresence>
@@ -75,7 +116,7 @@ export function PlaylistRail() {
                           <div className={`text-sm opacity-75 ${
                             index === currentTrackIndex ? "text-background/80" : "text-foreground/60"
                           }`}>
-                            {Math.floor(track.duration / 60)}:{(track.duration % 60).toString().padStart(2, '0')}
+                            {formatDuration(trackDurations[track.id] ?? track.duration)}
                           </div>
                         </div>
                       </div>
@@ -87,7 +128,7 @@ export function PlaylistRail() {
               {/* Footer */}
               <div className="p-4 border-t border-foreground/10">
                 <div className="text-sm text-foreground/60 text-center">
-                  {tracks.length} tracks • Aurora Veil
+                  {tracks.length} track{tracks.length !== 1 ? "s" : ""} • {config.artist.name}
                 </div>
               </div>
             </div>

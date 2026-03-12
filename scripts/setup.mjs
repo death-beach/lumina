@@ -87,22 +87,43 @@ header("Tracks");
 const trackCountStr = await ask("How many tracks?", "1");
 const trackCount = Math.max(1, Math.min(50, parseInt(trackCountStr, 10) || 1));
 
-const trackNames = [];
+const trackEntries = [];
 for (let i = 1; i <= trackCount; i++) {
   const name = await ask(`Track ${i} name`);
-  trackNames.push(name || `Track ${i}`);
+  const trackName = name || `Track ${i}`;
+
+  const hasLyrics = await askYesNo(`  Does "${trackName}" have a lyrics file? (.lrc)`, false);
+  let lrcFile = null;
+  if (hasLyrics) {
+    lrcFile = await ask(`  Lyrics filename`, `track${i}.lrc`);
+    if (!lrcFile.endsWith(".lrc")) lrcFile += ".lrc";
+  }
+
+  trackEntries.push({ name: trackName, lrcFile });
 }
+
+const trackNames = trackEntries.map(t => t.name);
 
 // ── File naming instructions ──────────────────────────────────────────────────
 print("");
 print(`${BOLD}────────────────────────────────────────────────────────${RESET}`);
-header("Next: Add your MP3 files");
+header("Next: Add your files");
 print("");
-print("  Drop your tracks into the  public/tracks/  folder and name them:");
+print("  Drop your MP3s into  public/tracks/  and name them:");
 print("");
 
-for (let i = 0; i < trackNames.length; i++) {
-  print(`    ${CYAN}public/tracks/track${i + 1}.mp3${RESET}  →  ${BOLD}${trackNames[i]}${RESET}`);
+for (let i = 0; i < trackEntries.length; i++) {
+  print(`    ${CYAN}public/tracks/track${i + 1}.mp3${RESET}  →  ${BOLD}${trackEntries[i].name}${RESET}`);
+}
+
+const lrcTracks = trackEntries.filter(t => t.lrcFile);
+if (lrcTracks.length > 0) {
+  print("");
+  print("  Drop your LRC lyric files into  public/lyrics/  and name them:");
+  print("");
+  for (const t of lrcTracks) {
+    print(`    ${CYAN}public/lyrics/${t.lrcFile}${RESET}  →  ${BOLD}${t.name}${RESET}`);
+  }
 }
 
 print("");
@@ -114,10 +135,11 @@ print("");
 await askYesNo("Done adding your MP3 files?", true);
 
 // ── Build config ──────────────────────────────────────────────────────────────
-const tracks = trackNames.map((title, i) => ({
+const tracks = trackEntries.map((entry, i) => ({
   id: `track-${String(i + 1).padStart(2, "0")}`,
-  title,
+  title: entry.name,
   src: `/tracks/track${i + 1}.mp3`,
+  lrcFile: entry.lrcFile,
 }));
 
 const configContent = generateConfig({ artistName, albumTitle, tracks });
@@ -172,15 +194,20 @@ function generateConfig({ artistName, albumTitle, tracks }) {
 
   const tracksCode = tracks
     .map(
-      (t, i) => `    {
+      (t, i) => {
+        const lyricsBlock = t.lrcFile
+          ? `\n      lyrics: {\n        type: "timed",\n        src: "/lyrics/${escStr(t.lrcFile)}",\n      },`
+          : "";
+        return `    {
       id: "${t.id}",
       title: "${escStr(t.title)}",
       src: "${t.src}",
       visual: {
         type: "reactive",
         scene: "particles",
-      },
-    }${i < tracks.length - 1 ? "," : ""}`
+      },${lyricsBlock}
+    }${i < tracks.length - 1 ? "," : ""}`;
+      }
     )
     .join("\n");
 
