@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { motion } from "framer-motion";
 import { usePlayerStore } from "@/store/playerStore";
 import { usePlaylist } from "@/hooks/usePlaylist";
 import { AudioEngine } from "./AudioEngine";
@@ -10,11 +11,40 @@ import { TrackInfo } from "./TrackInfo";
 import { PlaylistRail } from "./PlaylistRail";
 import { VisualizerManager } from "../visualizer/VisualizerManager";
 
+const IDLE_TIMEOUT_MS = 3000;
+
 export function PlayerShell() {
   const isPlaylistOpen = usePlayerStore(s => s.isPlaylistOpen);
   const isStoreOpen = usePlayerStore(s => s.isStoreOpen);
   const togglePlaylist = usePlayerStore(s => s.togglePlaylist);
   const { nextTrack, prevTrack } = usePlaylist();
+
+  // ── Idle / auto-hide UI ───────────────────────────────────────────────────
+  const [isIdle, setIsIdle] = useState(false);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const resetIdle = useCallback(() => {
+    setIsIdle(false);
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    idleTimer.current = setTimeout(() => setIsIdle(true), IDLE_TIMEOUT_MS);
+  }, []);
+
+  useEffect(() => {
+    // Kick off the initial idle timer without touching state
+    idleTimer.current = setTimeout(() => setIsIdle(true), IDLE_TIMEOUT_MS);
+
+    const events = ["mousemove", "mousedown", "touchstart", "keydown"] as const;
+    events.forEach(ev => window.addEventListener(ev, resetIdle, { passive: true }));
+
+    return () => {
+      events.forEach(ev => window.removeEventListener(ev, resetIdle));
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // UI is visible when not idle, OR when a panel is open
+  const uiVisible = !isIdle || isPlaylistOpen || isStoreOpen;
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -63,10 +93,13 @@ export function PlayerShell() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaylistOpen, togglePlaylist, nextTrack, prevTrack]);
+  }, [isPlaylistOpen, isStoreOpen, togglePlaylist, nextTrack, prevTrack]);
 
   return (
-    <div className="relative w-full h-screen bg-background overflow-hidden">
+    <div
+      className="relative w-full h-screen bg-background overflow-hidden"
+      style={{ cursor: isIdle ? "none" : "default" }}
+    >
       {/* Background Layer - Visualizer or Video */}
       <VisualizerManager />
 
@@ -75,7 +108,11 @@ export function PlayerShell() {
       <VideoEngine />
 
       {/* UI Overlays */}
-      <div className="relative z-10 w-full h-full pointer-events-none">
+      <motion.div
+        className="relative z-10 w-full h-full pointer-events-none"
+        animate={{ opacity: uiVisible ? 1 : 0 }}
+        transition={{ duration: 0.4, ease: "easeInOut" }}
+      >
         {/* Top Bar - Logo, Artist Info, Controls */}
         <div className="absolute top-0 left-0 right-0 p-6 pointer-events-auto">
           <div className="flex items-center justify-end">
@@ -111,7 +148,7 @@ export function PlayerShell() {
         <div className="absolute bottom-0 left-0 right-0 p-6 pointer-events-auto">
           <Controls />
         </div>
-      </div>
+      </motion.div>
 
       {/* Playlist Rail - Outside UI overlays for proper z-index */}
       <PlaylistRail />
