@@ -78,12 +78,7 @@ export function PlayerShell() {
       <div className="relative z-10 w-full h-full pointer-events-none">
         {/* Top Bar - Logo, Artist Info, Controls */}
         <div className="absolute top-0 left-0 right-0 p-6 pointer-events-auto">
-          <div className="flex items-center justify-between">
-            {/* Logo/Artist */}
-            <div className="text-foreground">
-              <h1 className="text-xl font-bold">Lumina</h1>
-            </div>
-
+          <div className="flex items-center justify-end">
             {/* Top Controls */}
             <div className="flex items-center gap-4">
               {/* TODO: Info button, Lyrics toggle, Store button */}

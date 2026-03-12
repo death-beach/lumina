@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlayerStore } from "@/store/playerStore";
 import { usePlaylist } from "@/hooks/usePlaylist";
+import config from "@/lumina.config";
 
 export function TrackInfo() {
   const currentTrackIndex = usePlayerStore(s => s.currentTrackIndex);
@@ -12,6 +13,7 @@ export function TrackInfo() {
 
   const trackNumber = currentTrackIndex + 1;
   const totalTracks = tracks.length;
+  const artistName = config.artist.name;
 
   return (
     <div className="absolute top-8 left-8 z-20 text-white">
@@ -24,14 +26,14 @@ export function TrackInfo() {
           transition={{ duration: 0.3, ease: "easeOut" }}
           className="space-y-1"
         >
-          <div className="text-sm opacity-80">
+          <div className="text-xs opacity-60 uppercase tracking-widest">
             Track {trackNumber} / {totalTracks}
           </div>
-          <div className="text-lg font-medium">
+          <div className="text-2xl font-semibold leading-tight">
             {currentTrack.title}
           </div>
           <div className="text-sm opacity-60">
-            Aurora Veil
+            {artistName}
           </div>
         </motion.div>
       </AnimatePresence>

@@ -8,9 +8,9 @@ import type { LuminaConfig } from "@/lib/config";
 
 const config: LuminaConfig = {
   artist: {
-    name: "Aurora Veil",
+    name: "Death Beach", // enter artist name here
     bio: "Ethereal dream-pop from the Pacific Northwest.",
-    logo: "/artwork/logo.svg",           // optional — shown in top-left
+    logo: "/artwork/logo.png",           // optional — shown in top-left
     socials: {
       instagram: "https://instagram.com/auroraveil",
       spotify: "https://open.spotify.com/artist/...",
@@ -36,7 +36,7 @@ const config: LuminaConfig = {
   tracks: [
     {
       id: "track-01",
-      title: "Your First Track",
+      title: "Drunk On The Mike",
       duration: 180,                     // seconds (update with actual duration)
       src: "/tracks/track1.mp3",
       artwork: "/artwork/track1.jpg",    // optional
