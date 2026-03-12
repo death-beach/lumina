@@ -8,7 +8,7 @@ import type { LuminaConfig } from "@/lib/config";
 
 const config: LuminaConfig = {
   artist: {
-    name: "Death Beach", // enter artist name here
+    name: "Artist Name", // enter artist name here
     bio: "Ethereal dream-pop from the Pacific Northwest.",
     logo: "/artwork/logo.png",           // optional — shown in top-left
     socials: {
@@ -36,7 +36,7 @@ const config: LuminaConfig = {
   tracks: [
     {
       id: "track-01",
-      title: "Drunk On The Mike",
+      title: "Your First Track",
       duration: 180,                     // seconds (update with actual duration)
       src: "/tracks/track1.mp3",
       artwork: "/artwork/track1.jpg",    // optional

@@ -14,6 +14,7 @@ export function TrackInfo() {
   const trackNumber = currentTrackIndex + 1;
   const totalTracks = tracks.length;
   const artistName = config.artist.name;
+  const albumTitle = config.album?.title ?? null;
 
   return (
     <div className="absolute top-8 left-8 z-20 text-white">
@@ -32,6 +33,11 @@ export function TrackInfo() {
           <div className="text-2xl font-semibold leading-tight">
             {currentTrack.title}
           </div>
+          {albumTitle && (
+            <div className="text-sm opacity-70 italic">
+              {albumTitle}
+            </div>
+          )}
           <div className="text-sm opacity-60">
             {artistName}
           </div>

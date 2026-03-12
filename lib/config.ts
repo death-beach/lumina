@@ -1,37 +1,44 @@
 import { z } from "zod";
 
-// Artist schema
+// ── Artist ────────────────────────────────────────────────────────────────────
 const ArtistSchema = z.object({
   name: z.string().min(1),
-  bio: z.string().min(1),
+  bio: z.string().optional(),
   logo: z.string().optional(),
-  socials: z.object({
-    instagram: z.string().url().optional(),
-    spotify: z.string().url().optional(),
-    bandcamp: z.string().url().optional(),
-  }).optional(),
+  socials: z
+    .object({
+      instagram: z.string().optional(),
+      spotify: z.string().optional(),
+      bandcamp: z.string().optional(),
+    })
+    .optional(),
 });
 
-// Album schema
-const AlbumSchema = z.object({
-  title: z.string().min(1),
-  artwork: z.string().min(1),
-  releaseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  description: z.string().min(1),
-});
+// ── Album (entirely optional) ─────────────────────────────────────────────────
+const AlbumSchema = z
+  .object({
+    title: z.string().min(1),
+    artwork: z.string().optional(),
+    releaseDate: z.string().optional(),
+    description: z.string().optional(),
+  })
+  .nullable()
+  .optional();
 
-// Theme schema
-const ThemeSchema = z.object({
-  accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  blurIntensity: z.enum(["low", "medium", "high"]),
-  fontDisplay: z.enum(["inter", "playfair", "space-grotesk"]),
-});
+// ── Theme ─────────────────────────────────────────────────────────────────────
+const ThemeSchema = z
+  .object({
+    accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    blurIntensity: z.enum(["low", "medium", "high"]).optional(),
+    fontDisplay: z.enum(["inter", "playfair", "space-grotesk"]).optional(),
+  })
+  .optional();
 
-// Visual schemas
+// ── Visuals ───────────────────────────────────────────────────────────────────
 const ReactiveVisualSchema = z.object({
   type: z.literal("reactive"),
-  scene: z.enum(["particles", "waveform", "nebula"]),
+  scene: z.enum(["particles", "waveform", "nebula"]).optional(),
   colorOverride: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
 });
 
@@ -43,61 +50,61 @@ const VideoVisualSchema = z.object({
 
 const VisualSchema = z.union([ReactiveVisualSchema, VideoVisualSchema]);
 
-// Lyrics schemas
-const TimedLyricsSchema = z.object({
-  type: z.literal("timed"),
-  src: z.string().min(1),
-});
+// ── Lyrics ────────────────────────────────────────────────────────────────────
+const LyricsSchema = z
+  .union([
+    z.object({ type: z.literal("timed"), src: z.string().min(1) }),
+    z.object({ type: z.literal("static"), text: z.string().min(1) }),
+  ])
+  .optional();
 
-const StaticLyricsSchema = z.object({
-  type: z.literal("static"),
-  text: z.string().min(1),
-});
-
-const LyricsSchema = z.union([TimedLyricsSchema, StaticLyricsSchema]);
-
-// Track schema
+// ── Track ─────────────────────────────────────────────────────────────────────
 const TrackSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
-  duration: z.number().positive(),
   src: z.string().min(1),
+  duration: z.number().optional(),          // optional — Howler reads it at runtime
   artwork: z.string().optional(),
   visual: VisualSchema,
-  lyrics: LyricsSchema.optional(),
+  lyrics: LyricsSchema,
 });
 
-// Store product schema
-const ProductSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  description: z.string().min(1),
-  price: z.string().min(1),
-  image: z.string().min(1),
-  stripeLink: z.string().url(),
-  type: z.enum(["physical", "digital"]),
-  badge: z.string().optional(),
-});
+// ── Store (entirely optional) ─────────────────────────────────────────────────
+const StoreSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    headline: z.string().optional(),
+    subheading: z.string().optional(),
+    products: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          name: z.string().min(1),
+          description: z.string().optional(),
+          price: z.string().min(1),
+          image: z.string().optional(),
+          stripeLink: z.string().optional(),
+          type: z.enum(["physical", "digital"]).optional(),
+          badge: z.string().optional(),
+        })
+      )
+      .optional(),
+  })
+  .optional();
 
-// Store schema
-const StoreSchema = z.object({
-  enabled: z.boolean(),
-  headline: z.string().min(1),
-  subheading: z.string().min(1),
-  products: z.array(ProductSchema).min(1),
-});
+// ── Features (all optional, default false) ────────────────────────────────────
+const FeaturesSchema = z
+  .object({
+    showLyrics: z.boolean().optional(),
+    showStore: z.boolean().optional(),
+    showPlaylist: z.boolean().optional(),
+    allowShuffle: z.boolean().optional(),
+    autoplayNext: z.boolean().optional(),
+    showArtistBio: z.boolean().optional(),
+  })
+  .optional();
 
-// Features schema
-const FeaturesSchema = z.object({
-  showLyrics: z.boolean(),
-  showStore: z.boolean(),
-  showPlaylist: z.boolean(),
-  allowShuffle: z.boolean(),
-  autoplayNext: z.boolean(),
-  showArtistBio: z.boolean(),
-});
-
-// Main config schema
+// ── Main config ───────────────────────────────────────────────────────────────
 export const LuminaConfigSchema = z.object({
   artist: ArtistSchema,
   album: AlbumSchema,
@@ -115,23 +122,13 @@ export function validateConfig(config: unknown): LuminaConfig {
   return LuminaConfigSchema.parse(config);
 }
 
-// Default config for development
+// Default config (used as fallback / dev reference)
 export const defaultConfig: LuminaConfig = {
   artist: {
     name: "Aurora Veil",
-    bio: "Ethereal dream-pop from the Pacific Northwest.",
-    logo: "/artwork/logo.svg",
-    socials: {
-      instagram: "https://instagram.com/auroraveil",
-      spotify: "https://open.spotify.com/artist/...",
-      bandcamp: "https://auroraveil.bandcamp.com",
-    },
   },
   album: {
     title: "Glass Meridian",
-    artwork: "/artwork/cover.jpg",
-    releaseDate: "2025-03-08",
-    description: "A journey through light and frequency. Eight tracks recorded live in an abandoned lighthouse.",
   },
   theme: {
     accentColor: "#a78bfa",
@@ -142,43 +139,16 @@ export const defaultConfig: LuminaConfig = {
   tracks: [
     {
       id: "track-01",
-      title: "Glass Meridian",
-      duration: 237,
-      src: "/tracks/01-glass-meridian.mp3",
-      artwork: "/artwork/track-01.jpg",
+      title: "Your First Track",
+      src: "/tracks/track1.mp3",
       visual: {
         type: "reactive",
         scene: "particles",
       },
-      lyrics: {
-        type: "timed",
-        src: "/lyrics/01-glass-meridian.vtt",
-      },
     },
   ],
-  store: {
-    enabled: true,
-    headline: "Support the art",
-    subheading: "Every purchase goes directly to us",
-    products: [
-      {
-        id: "vinyl",
-        name: "Glass Meridian — Deluxe Vinyl",
-        description: "180g pressing. Full-color gatefold sleeve. Limited to 300 copies.",
-        price: "$38",
-        image: "/artwork/vinyl.jpg",
-        stripeLink: "https://buy.stripe.com/test_xxxxxxxxxxxx",
-        type: "physical",
-        badge: "Limited Edition",
-      },
-    ],
-  },
   features: {
-    showLyrics: true,
-    showStore: true,
     showPlaylist: true,
-    allowShuffle: true,
     autoplayNext: true,
-    showArtistBio: true,
   },
 };
