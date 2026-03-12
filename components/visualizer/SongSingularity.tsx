@@ -71,7 +71,7 @@ function Core({ audioData }: { audioData: Uint8Array | null }) {
         [4, 6, 0.2],   // Rolloff zone
       ], 0.88);
       const targetScale = 1.0 + bassEnergy * 0.4;
-      const lerpSpeed = targetScale < scale.current ? 0.91  : 0.4;
+      const lerpSpeed = targetScale < scale.current ? 0.85  : 0.4;
       scale.current = THREE.MathUtils.lerp(scale.current, targetScale, lerpSpeed);
     } else {
       // Gentle breathing when no audio
@@ -144,6 +144,8 @@ function Rings({ audioData }: { audioData: Uint8Array | null }) {
         radius: 2.2 + seededRandom() * 7,
         tube: 0.012 + seededRandom() * 0.018,
         color: palette[i],
+        speedX: (seededRandom() - 0.5) * 0.03,
+        speedY: (seededRandom() - 0.5) * 0.025,
         speed: (seededRandom() - 0.5) * 0.04,
         rot: new THREE.Euler(
           seededRandom() * Math.PI,
@@ -163,6 +165,8 @@ function Rings({ audioData }: { audioData: Uint8Array | null }) {
     groupRef.current.rotation.x = state.clock.elapsedTime * 0.025;
 
     groupRef.current.children.forEach((child, i) => {
+      child.rotation.x += rings[i].speedX;
+      child.rotation.y += rings[i].speedY;
       child.rotation.z += rings[i].speed;
       child.scale.setScalar(1.0);
 
