@@ -69,9 +69,9 @@ function Core({ audioData }: { audioData: Uint8Array | null }) {
       const bassEnergy = weightedBandEnergy(audioData, [
         [0, 3, 1.0],   // Full bass range
         [4, 6, 0.2],   // Rolloff zone
-      ], 0.80);
-      const targetScale = 1.0 + bassEnergy * 0.8;
-      const lerpSpeed = targetScale < scale.current ? 0.6 : 0.4;
+      ], 0.88);
+      const targetScale = 1.0 + bassEnergy * 0.4;
+      const lerpSpeed = targetScale < scale.current ? 0.91  : 0.4;
       scale.current = THREE.MathUtils.lerp(scale.current, targetScale, lerpSpeed);
     } else {
       // Gentle breathing when no audio

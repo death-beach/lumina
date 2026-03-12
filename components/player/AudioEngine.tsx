@@ -7,7 +7,8 @@ import { useAudio } from "@/hooks/useAudio";
 
 export function AudioEngine() {
   const isPlaying = usePlayerStore(s => s.isPlaying);
-  const progress = usePlayerStore(s => s.progress);
+  const seekTarget = usePlayerStore(s => s.seekTarget);
+  const setSeekTarget = usePlayerStore(s => s.setSeekTarget);
   const currentTrackIndex = usePlayerStore(s => s.currentTrackIndex);
   const setIsPlaying = usePlayerStore(s => s.setIsPlaying);
   const { currentTrack, nextTrack, hasNext } = usePlaylist();
@@ -29,13 +30,14 @@ export function AudioEngine() {
     }
   }, [isPlaying, isAudioTrack, isLoaded, play, pause]);
 
-  // Handle seeking
+  // Handle user-initiated seeking only
   useEffect(() => {
-    if (!isAudioTrack || !isLoaded || !duration) return;
+    if (!isAudioTrack || !isLoaded || !duration || seekTarget === null) return;
 
-    const seekTime = progress * duration;
+    const seekTime = seekTarget * duration;
     seek(seekTime);
-  }, [progress, duration, isAudioTrack, isLoaded, seek]);
+    setSeekTarget(null); // clear after seeking so it doesn't re-fire
+  }, [seekTarget, duration, isAudioTrack, isLoaded, seek, setSeekTarget]);
 
 
 

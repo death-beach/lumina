@@ -65,7 +65,7 @@ export function useAudio(src: string): UseAudioReturn {
             // Create analyser node
             const analyser = ctx.createAnalyser();
             analyser.fftSize = 512; // 256 bins
-            analyser.smoothingTimeConstant = 0.8;
+            analyser.smoothingTimeConstant = 0.7;
 
             // Connect to Howler's master gain node (all sounds route through this)
             if (Howler.masterGain) {

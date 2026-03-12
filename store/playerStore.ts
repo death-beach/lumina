@@ -7,6 +7,7 @@ interface PlayerState {
   volume: number; // 0–1
   progress: number; // 0–1
   isMuted: boolean;
+  seekTarget: number | null; // set only on user-initiated seek, cleared after seek
 
   // UI state
   isPlaylistOpen: boolean;
@@ -23,6 +24,7 @@ interface PlayerState {
   setVolume: (volume: number) => void;
   setProgress: (progress: number) => void;
   setIsMuted: (muted: boolean) => void;
+  setSeekTarget: (target: number | null) => void;
   togglePlaylist: () => void;
   toggleStore: () => void;
   toggleLyrics: () => void;
@@ -34,7 +36,7 @@ interface PlayerState {
   pause: () => void;
   nextTrack: () => void;
   prevTrack: () => void;
-  seekTo: (progress: number) => void;
+  seekTo: (progress: number) => void; // user-initiated seek
   setVolumeLevel: (level: number) => void;
   toggleMute: () => void;
 }
@@ -46,6 +48,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   volume: 0.8,
   progress: 0,
   isMuted: false,
+  seekTarget: null,
   isPlaylistOpen: false,
   isStoreOpen: false,
   isLyricsVisible: false,
@@ -58,6 +61,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setVolume: (volume) => set({ volume: Math.max(0, Math.min(1, volume)) }),
   setProgress: (progress) => set({ progress: Math.max(0, Math.min(1, progress)) }),
   setIsMuted: (muted) => set({ isMuted: muted }),
+  setSeekTarget: (target) => set({ seekTarget: target }),
   togglePlaylist: () => set((state) => ({ isPlaylistOpen: !state.isPlaylistOpen })),
   toggleStore: () => set((state) => ({ isStoreOpen: !state.isStoreOpen })),
   toggleLyrics: () => set((state) => ({ isLyricsVisible: !state.isLyricsVisible })),
@@ -76,7 +80,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { currentTrackIndex } = get();
     set({ currentTrackIndex: Math.max(0, currentTrackIndex - 1) });
   },
-  seekTo: (progress) => set({ progress }),
+  seekTo: (progress) => set({ seekTarget: progress, progress }),
   setVolumeLevel: (level) => set({ volume: Math.max(0, Math.min(1, level)) }),
   toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
 }));
