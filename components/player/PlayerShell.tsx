@@ -153,14 +153,14 @@ export function PlayerShell() {
         {/* Track Info - Animated in/out */}
         <TrackInfo />
 
-        {/* Lyrics Panel - synced lyrics overlay */}
-        <LyricsPanel />
-
         {/* Bottom Controls */}
         <div className="absolute bottom-0 left-0 right-0 p-6 pointer-events-auto">
           <Controls />
         </div>
       </motion.div>
+
+      {/* Lyrics Panel - outside idle-fade so it stays visible when UI hides */}
+      <LyricsPanel />
 
       {/* Playlist Rail - Outside UI overlays for proper z-index */}
       <PlaylistRail />

@@ -24,6 +24,10 @@ const config: LuminaConfig = {
       id: "track-01",
       title: "Drunk On The Mic",
       src: "/tracks/track1.mp3",
+      lyrics: {
+        type: "timed",
+        src: "/lyrics/track1.lrc",   // ← add this
+      },
       visual: {
         type: "reactive",
         scene: "particles",
