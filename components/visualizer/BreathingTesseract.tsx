@@ -23,7 +23,6 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
   const hexGroupRef = useRef<THREE.Group>(null!);
   const rotationAngles = useRef({ xy: 0, xz: 0, yz: 0, xw: 0, yw: 0, zw: 0 });
   
-  // 1. Properly typed refs for thick lines
   const solidLineRef = useRef<Line2>(null!);
   const glowLineRef = useRef<Line2>(null!);
 
@@ -49,7 +48,6 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
     return e;
   }, [vertices4D]);
 
-  // 2. Format positions as an array of Vector3 for Drei's 'points' prop
   const points = useMemo(() => new Array(edges.length * 2).fill(0).map(() => new THREE.Vector3()), [edges]);
 
   // === SHOOTING STARS SETUP ===
@@ -101,19 +99,18 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
 
   useFrame((state, delta) => {
     const { bass, mids, highs } = getThreeBands(audioData) ?? { bass: 0, mids: 0, highs: 0 };
-    const t = state.clock.getElapsedTime(); // Restored 't' for the Hexagon spin
+    const t = state.clock.getElapsedTime();
 
-    // BRAKE LOGIC: Base speed (0.6) reduced by mids intensity.
-    // When music is loud (mids=1), speed drops toward 0.05.
-    const brake = Math.max(0.05, 0.6 - mids * 0.55);
+    // TESSERACT ENGINE: Bass drives speed. 
+    // 0.2 is the idle speed. Increase 8.0 for more violence on the kick.
+    const tesseractSpeed = 1.2 + (bass * 5.6);
 
-    // Increment angles based on delta so they don't jump
-    rotationAngles.current.xy += delta * brake * 0.22;
-    rotationAngles.current.xz += delta * brake * 0.18;
-    rotationAngles.current.yz += delta * brake * 0.25;
-    rotationAngles.current.xw += delta * brake * 0.38;
-    rotationAngles.current.yw += delta * brake * 0.31;
-    rotationAngles.current.zw += delta * brake * 0.29;
+    rotationAngles.current.xy += delta * tesseractSpeed * 0.22;
+    rotationAngles.current.xz += delta * tesseractSpeed * 0.18;
+    rotationAngles.current.yz += delta * tesseractSpeed * 0.25;
+    rotationAngles.current.xw += delta * tesseractSpeed * 0.38;
+    rotationAngles.current.yw += delta * tesseractSpeed * 0.31;
+    rotationAngles.current.zw += delta * tesseractSpeed * 0.29;
 
     const { xy, xz, yz, xw, yw, zw } = rotationAngles.current;
 
@@ -127,9 +124,8 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       rotatePlane(v, 2, 3, zw);
     });
 
-    const projDist = 6.5 + bass * 1.5; // Restored 'bass' for breathing depth
+    const projDist = 6.5 + bass * 1.5; 
 
-    // Update the points for our thick lines
     let pIdx = 0;
     for (const [i, j] of edges) {
       const p1 = project(rotated[i], projDist);
@@ -138,21 +134,28 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       points[pIdx++].set(p2[0], p2[1], p2[2]);
     }
 
-    // Direct geometry updates
-    if (solidLineRef.current) solidLineRef.current.geometry.setPositions(points.flatMap(p => [p.x, p.y, p.z]));
-    if (glowLineRef.current) glowLineRef.current.geometry.setPositions(points.flatMap(p => [p.x, p.y, p.z]));
-
-    if (tesseractRef.current) {
-      tesseractRef.current.scale.setScalar(1.8 + bass * 0.03); // Restored 'bass' for scale
+    if (solidLineRef.current) {
+      solidLineRef.current.geometry.setPositions(points.flatMap(p => [p.x, p.y, p.z]));
+      // Line thickness reacts to bass
+      solidLineRef.current.material.linewidth = 2.5 + (bass * 5);
+    }
+    if (glowLineRef.current) {
+      glowLineRef.current.geometry.setPositions(points.flatMap(p => [p.x, p.y, p.z]));
+      // Glow reacts to bass
+      glowLineRef.current.material.linewidth = 10 + (bass * 22);
     }
 
-    // Hexagon Core (Uses 't' for a separate, consistent spin)
+    if (tesseractRef.current) {
+      tesseractRef.current.scale.setScalar(1.8 + bass * 0.5); 
+    }
+
+    // HEXAGON: Stays mids-reactive per your code
     if (hexGroupRef.current) {
       hexGroupRef.current.rotation.z = t * (0.6 + mids * 3.8);
       (hexGlowMaterial as THREE.MeshBasicMaterial).opacity = (0.35 + mids * 1.45) * 0.75;
     }
 
-    // Shooting Stars (rest of your star logic...)
+    // STARS: Stays highs-reactive per your code
     const activeCount = Math.max(2, Math.floor(4 + highs * 27));
     const starPos = starGeometry.attributes.position.array as Float32Array;
     const starCol = starGeometry.attributes.color.array as Float32Array;
@@ -182,7 +185,6 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
   return (
     <>
       <group ref={tesseractRef}>
-        {/* Adjust lineWidth below for the solid line */}
         <Line 
           ref={solidLineRef} 
           points={points} 
@@ -192,7 +194,6 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
           transparent 
           opacity={0.9} 
         />
-        {/* Adjust lineWidth below for the glow halo */}
         <Line 
           ref={glowLineRef} 
           points={points} 
