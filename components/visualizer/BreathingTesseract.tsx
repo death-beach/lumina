@@ -140,6 +140,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
         depthWrite: false,
+        opacity: 0.6, // More focused glow
       }),
     []
   );
@@ -180,7 +181,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       rotatePlane(v, 2, 3, zw);
     });
 
-    const projDist = 4.7 + bass * 3.4;
+    const projDist = 6.5 + bass * 1.5;
 
     // Update tesseract lines
     const posAttr = lineGeometry.attributes.position as THREE.BufferAttribute;
@@ -198,9 +199,9 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
     posAttr.needsUpdate = true;
 
     if (tesseractRef.current) {
-      tesseractRef.current.scale.setScalar(1 + bass * 0.28);
-      tesseractRef.current.rotation.y = mouse.x * 0.1;
-      tesseractRef.current.rotation.x = mouse.y * 0.08;
+      tesseractRef.current.scale.setScalar(1.8 + bass * 0.03); // Much less reactive scaling
+      tesseractRef.current.rotation.y = mouse.x * 0.005; // Much slower rotation
+      tesseractRef.current.rotation.x = mouse.y * 0.01; // Much slower rotation
     }
 
     // === HEXAGON BLACKHOLE CORE (mids controlled) ===
@@ -288,7 +289,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
         </lineSegments>
         {/* Soft glow layer */}
         <lineSegments geometry={lineGeometry}>
-          <lineBasicMaterial color="#bae6fd" transparent opacity={0.25} linewidth={3} />
+          <lineBasicMaterial color="#bae6fd" transparent opacity={0.25} linewidth={8.5} />
         </lineSegments>
       </group>
 
@@ -296,15 +297,15 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       <lineSegments geometry={starGeometry} material={starMaterial} />
 
       {/* Hexagonal Blackhole Core – Behind Tesseract (mids) */}
-      <group ref={hexGroupRef} position={[0, 0, -1.8]}>
-        {/* Red → Yellow Glow Halo */}
-        <mesh geometry={new THREE.RingGeometry(3.2, 4.8, 64)} material={hexGlowMaterial} />
+      <group ref={hexGroupRef} position={[0, 0, -2.5]}>
+        {/* Backlit Glow - behind the hexagon */}
+        <mesh geometry={new THREE.CircleGeometry(0.7, 64)} material={hexGlowMaterial} />
 
-        {/* Thin Hexagonal Border */}
-        <mesh geometry={new THREE.RingGeometry(2.35, 2.55, 6)} material={hexBorderMaterial} />
+        {/* Hexagonal Border - smaller and more defined */}
+        <mesh geometry={new THREE.RingGeometry(0.55, 0.65, 6)} material={hexBorderMaterial} />
 
-        {/* Blackhole Center Disc */}
-        <mesh geometry={new THREE.CircleGeometry(2.3, 6)}>
+        {/* Blackhole Center Disc - smaller */}
+        <mesh geometry={new THREE.CircleGeometry(0.55, 6)}>
           <meshBasicMaterial color="#000000" />
         </mesh>
       </group>
