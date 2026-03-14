@@ -39,7 +39,7 @@ const config: LuminaConfig = {
       src: "/tracks/track2.mp3",
       visual: {
         type: "reactive",
-        scene: "particles",
+        scene: "tesseract",
       },
     }
   ],

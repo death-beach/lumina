@@ -2,6 +2,14 @@
 
 import { usePlaylist } from "@/hooks/usePlaylist";
 import SongSingularity from "./SongSingularity";
+import BreathingTesseract from "./BreathingTesseract";
+
+const SCENE_MAP: Record<string, React.ComponentType> = {
+  particles: SongSingularity,
+  waveform: SongSingularity,
+  nebula: SongSingularity,
+  tesseract: BreathingTesseract,
+};
 
 export function VisualizerManager() {
   const { currentTrack } = usePlaylist();
@@ -20,6 +28,10 @@ export function VisualizerManager() {
     );
   }
 
+  // Get the visualizer component based on the scene type
+  const sceneType = currentTrack?.visual.type === "reactive" ? currentTrack.visual.scene : "particles";
+  const VisualizerComponent = SCENE_MAP[sceneType || "particles"] || SongSingularity;
+
   // Show the reactive visualizer
-  return <SongSingularity />;
+  return <VisualizerComponent />;
 }
