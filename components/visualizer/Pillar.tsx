@@ -109,6 +109,65 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
     new THREE.Color('#00ffff'), new THREE.Color('#ff003c'), new THREE.Color('#9d00ff'), new THREE.Color('#00ffff'), 
   ], []);
 
+  // Create jagged geometry with audio-responsive displacement
+  const createJaggedGeometry = useMemo(() => {
+    return (radiusTop: number, radiusBottom: number, height: number, segments: number, seed: number) => {
+      const geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, segments, 1, true);
+      const positionAttribute = geometry.attributes.position;
+      const normalAttribute = geometry.attributes.normal;
+      
+      // Create a seeded random function for consistent jaggedness
+      let currentSeed = seed;
+      const seededRandom = () => {
+        currentSeed = (currentSeed * 9301 + 49297) % 233280;
+        return (currentSeed / 233280) * 2 - 1; // Return -1 to 1
+      };
+
+      // Apply initial jagged displacement to make geometry more interesting
+      for (let i = 0; i < positionAttribute.count; i++) {
+        const vertex = new THREE.Vector3();
+        vertex.fromBufferAttribute(positionAttribute, i);
+        
+        // Add initial jagged noise to vertices
+        const noise = seededRandom();
+        const jaggedNoise = noise * 0.15; // Base jaggedness
+        
+        // Apply noise along normal direction
+        const normal = new THREE.Vector3();
+        normal.fromBufferAttribute(normalAttribute, i);
+        
+        vertex.add(normal.multiplyScalar(jaggedNoise));
+        positionAttribute.setXYZ(i, vertex.x, vertex.y, vertex.z);
+      }
+      positionAttribute.needsUpdate = true;
+
+      // Store original positions for displacement calculation
+      const originalPositions: THREE.Vector3[] = [];
+      for (let i = 0; i < positionAttribute.count; i++) {
+        const vertex = new THREE.Vector3();
+        vertex.fromBufferAttribute(positionAttribute, i);
+        originalPositions.push(vertex.clone());
+      }
+
+      return { geometry, originalPositions, seededRandom };
+    };
+  }, []);
+
+  // Create jagged geometries for outer and inner tubes
+  const jaggedGeometries = useMemo(() => {
+    const geometries = [];
+    for (let i = 0; i < positions.length; i++) {
+      // Use position-based seed for consistent jaggedness per pillar
+      const seed = Math.floor(positions[i].coords[0] * 1000) + Math.floor(positions[i].coords[2] * 1000);
+      
+      geometries.push({
+        outer: createJaggedGeometry(0.42, 0.38, 8.6, 16, seed),
+        inner: createJaggedGeometry(0.26, 0.23, 8.3, 12, seed + 1000)
+      });
+    }
+    return geometries;
+  }, [positions, createJaggedGeometry]);
+
   useFrame((state) => {
     const bands = audioData ? getThreeBands(audioData) : { bass: 0, mids: 0, highs: 0 };
     const t = state.clock.getElapsedTime();
@@ -170,6 +229,59 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, tilt * (Math.sin(pillarT * 1.35) * 0.55 + coords[0] * 0.007), 0.15);
       group.rotation.z = THREE.MathUtils.lerp(group.rotation.z, tilt * (Math.cos(pillarT * 0.9) * 0.52 + coords[2] * 0.008), 0.15);
 
+      // Audio-responsive jagged displacement
+      const jaggedness = bands.bass * 0.3 + (glitchActive ? 0.2 : 0); // More jagged on bass hits and glitches
+      const timeOffset = t * 2.0 + i * 0.3;
+      
+      // Update outer geometry displacement
+      const outerGeometry = jaggedGeometries[i]?.outer;
+      if (outerGeometry) {
+        const positionAttribute = outerGeometry.geometry.attributes.position;
+        const normalAttribute = outerGeometry.geometry.attributes.normal;
+        
+        for (let j = 0; j < positionAttribute.count; j++) {
+          const originalPos = outerGeometry.originalPositions[j];
+          const vertex = new THREE.Vector3();
+          vertex.fromBufferAttribute(positionAttribute, j);
+          
+          // Calculate displacement based on audio and time
+          const noise = outerGeometry.seededRandom();
+          const displacement = Math.sin(timeOffset + j * 0.1) * jaggedness * 0.5 + noise * jaggedness * 0.3;
+          
+          // Apply displacement along normal direction for jagged effect
+          const normal = new THREE.Vector3();
+          normal.fromBufferAttribute(normalAttribute, j);
+          
+          vertex.copy(originalPos).add(normal.multiplyScalar(displacement));
+          positionAttribute.setXYZ(j, vertex.x, vertex.y, vertex.z);
+        }
+        positionAttribute.needsUpdate = true;
+      }
+
+      // Update inner geometry displacement (less intense)
+      const innerGeometry = jaggedGeometries[i]?.inner;
+      if (innerGeometry) {
+        const positionAttribute = innerGeometry.geometry.attributes.position;
+        const normalAttribute = innerGeometry.geometry.attributes.normal;
+        
+        for (let j = 0; j < positionAttribute.count; j++) {
+          const originalPos = innerGeometry.originalPositions[j];
+          const vertex = new THREE.Vector3();
+          vertex.fromBufferAttribute(positionAttribute, j);
+          
+          // Inner tube has less jagged displacement
+          const noise = innerGeometry.seededRandom();
+          const displacement = Math.sin(timeOffset * 0.8 + j * 0.15) * jaggedness * 0.25 + noise * jaggedness * 0.15;
+          
+          const normal = new THREE.Vector3();
+          normal.fromBufferAttribute(normalAttribute, j);
+          
+          vertex.copy(originalPos).add(normal.multiplyScalar(displacement));
+          positionAttribute.setXYZ(j, vertex.x, vertex.y, vertex.z);
+        }
+        positionAttribute.needsUpdate = true;
+      }
+
       // Color dynamics
       const flowSpeed = 1.0 + bands.highs * 2.0;
       const phase = (pillarT * flowSpeed) % colorPalette.length;
@@ -202,12 +314,14 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       <group ref={gridRef}>
         {positions.map((p, i) => (
           <group key={i} ref={(el) => { if (el) pillarGroups.current[i] = el; }} position={p.coords}>
-            <Cylinder ref={(el) => { if (el) outerMeshes.current[i] = el as unknown as THREE.Mesh; }} args={[0.42, 0.38, 8.6, 12]}>
+            {/* Jagged outer tube */}
+            <mesh ref={(el) => { if (el) outerMeshes.current[i] = el; }} geometry={jaggedGeometries[i]?.outer?.geometry}>
               <meshPhongMaterial color="#0a111a" emissive="#00ffff" emissiveIntensity={0.4} shininess={128} specular="#ffffff" transparent opacity={0.85} />
-            </Cylinder>
-            <Cylinder ref={(el) => { if (el) innerMeshes.current[i] = el as unknown as THREE.Mesh; }} args={[0.26, 0.23, 8.3, 12]} position={[0, 0.05, 0]}>
+            </mesh>
+            {/* Jagged inner tube */}
+            <mesh ref={(el) => { if (el) innerMeshes.current[i] = el; }} geometry={jaggedGeometries[i]?.inner?.geometry} position={[0, 0.05, 0]}>
               <meshPhongMaterial color="#110511" emissive="#ff003c" emissiveIntensity={1.2} shininess={75} specular="#ffffff" />
-            </Cylinder>
+            </mesh>
           </group>
         ))}
       </group>
