@@ -30,7 +30,7 @@ const config: LuminaConfig = {
       },
       visual: {
         type: "reactive",
-        scene: "particles",
+        scene: "pillar",
       },
     },
     {

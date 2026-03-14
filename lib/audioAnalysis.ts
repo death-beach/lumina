@@ -79,7 +79,7 @@ export function getThreeBands(data: Uint8Array | null): ThreeBands {
       [0, 3, 1.0],  // full bass
       [4, 6, 0.2],  // rolloff to mids
     ],
-    0.08,           // noise floor — ignore room noise / very quiet passages
+    0.88,           // noise floor — ignore room noise / very quiet passages
   );
 
   const mids = weightedBandEnergy(

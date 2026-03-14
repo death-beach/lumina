@@ -3,12 +3,14 @@
 import { usePlaylist } from "@/hooks/usePlaylist";
 import SongSingularity from "./SongSingularity";
 import BreathingTesseract from "./BreathingTesseract";
+import Pillar from "./Pillar";
 
 const SCENE_MAP: Record<string, React.ComponentType> = {
   particles: SongSingularity,
   waveform: SongSingularity,
   nebula: SongSingularity,
   tesseract: BreathingTesseract,
+  pillar: Pillar,
 };
 
 export function VisualizerManager() {
