@@ -43,6 +43,7 @@ PERFORMANCE REQUIREMENTS:
 - Implement mobile optimizations (reduce counts, simplify shaders)
 - No console.log in production code
 - Use useMemo for static data, useRef for mutable state
+- **Mouse Interaction**: Add mouse/touch responsiveness using `useThree()` hook to access `state.pointer` for interactive scenes
 
 REACT HOOKS BEST PRACTICES (CRITICAL):
 
@@ -102,16 +103,22 @@ The component MUST follow this exact 2-component pattern:
 "use no memo";
 "use client";
 
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { getThreeBands } from "@/lib/audioAnalysis";
 import { useAudioData } from "@/hooks/useAudioData";
 
 function Scene({ audioData }: { audioData: Uint8Array | null }) {
+  const { pointer } = useThree(); // For mouse interaction
+
   useFrame((state) => {
     const { bass, mids, highs } = getThreeBands(audioData);
     // bass  → low-end energy [0, 1]  — kicks, subs
     // mids  → mid energy    [0, 1]  — vocals, snare
     // highs → high energy   [0, 1]  — cymbals, air
+
+    // Mouse interaction example:
+    // const mouseX = pointer.x;
+    // const mouseY = pointer.y;
   });
 
   return (
@@ -119,6 +126,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       {/* ALL VISUAL ELEMENTS GO HERE */}
       {/* - 3D objects, lighting, camera controllers */}
       {/* - Audio-reactive animations */}
+      {/* - Mouse/touch interactive elements */}
       {/* - Post-processing effects */}
     </>
   );
