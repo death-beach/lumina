@@ -8,6 +8,7 @@ interface UseLyricsReturn {
   activeIndex: number;
   hasLyrics: boolean;
   isLoading: boolean;
+  isStatic: boolean;
 }
 
 export function useLyrics(): UseLyricsReturn {
@@ -30,6 +31,11 @@ export function useLyrics(): UseLyricsReturn {
     if (!lyrics || lyrics.type !== "timed") return null;
     return lyrics.src;
   }, [currentTrack?.id, currentTrack?.lyrics]);
+
+  // Check if lyrics are static
+  const isStatic = useMemo(() => {
+    return currentTrack?.lyrics?.type === "static";
+  }, [currentTrack?.lyrics]);
 
   // Load LRC file when track changes
   useEffect(() => {
@@ -64,15 +70,27 @@ export function useLyrics(): UseLyricsReturn {
     };
   }, [lyricsSrc, currentTrack?.id]);
 
+  // Handle static lyrics
+  useEffect(() => {
+    if (isStatic) {
+      const lyrics = currentTrack?.lyrics;
+      if (lyrics?.type === "static") {
+        setLines(lyrics.text.split('\n').map(line => ({ time: 0, text: line.trim() })));
+        setIsLoading(false);
+        fetchedTrackId.current = currentTrack?.id ?? null;
+      }
+    }
+  }, [isStatic, currentTrack?.id, currentTrack?.lyrics]);
+
   // Clear lyrics when track changes to one without lyrics
   useEffect(() => {
-    if (!lyricsSrc) {
+    if (!lyricsSrc && !isStatic) {
       fetchedTrackId.current = null;
       setLines([]);
       setIsLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lyricsSrc]);
+  }, [lyricsSrc, isStatic]);
 
   const activeIndex = getActiveLrcIndex(lines, currentSeconds);
 
@@ -81,5 +99,6 @@ export function useLyrics(): UseLyricsReturn {
     activeIndex,
     hasLyrics: lines.length > 0 || isLoading,
     isLoading,
+    isStatic,
   };
 }

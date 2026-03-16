@@ -44,6 +44,8 @@ const config: LuminaConfig = {
     }
   ],
 
+  storeUrl: "https://example.com/store",
+
   features: {
     showPlaylist: true,
     autoplayNext: true,

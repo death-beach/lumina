@@ -1,212 +1,30 @@
-#!/usr/bin/env node
-// ─────────────────────────────────────────────────────────────────────────────
-// Lumina Setup Wizard
-// Run with: npm run setup
-// ─────────────────────────────────────────────────────────────────────────────
-
-import * as readline from "node:readline/promises";
-import { stdin as input, stdout as output } from "node:process";
-import { execSync } from "node:child_process";
-import { writeFileSync, existsSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
-
-const rl = readline.createInterface({ input, output });
-
-const RESET = "\x1b[0m";
-const BOLD = "\x1b[1m";
-const CYAN = "\x1b[36m";
-const GREEN = "\x1b[32m";
-const YELLOW = "\x1b[33m";
-const DIM = "\x1b[2m";
-
-function print(msg = "") {
-  console.log(msg);
-}
-
-function header(msg) {
-  print(`\n${BOLD}${CYAN}${msg}${RESET}`);
-}
-
-function success(msg) {
-  print(`${GREEN}✓ ${msg}${RESET}`);
-}
-
-function warn(msg) {
-  print(`${YELLOW}⚠  ${msg}${RESET}`);
-}
-
-function dim(msg) {
-  print(`${DIM}${msg}${RESET}`);
-}
-
-async function ask(question, fallback = "") {
-  const hint = fallback ? ` ${DIM}(${fallback})${RESET}` : "";
-  const answer = await rl.question(`  ${question}${hint}: `);
-  return answer.trim() || fallback;
-}
-
-async function askYesNo(question, defaultYes = false) {
-  const hint = defaultYes ? "Y/n" : "y/N";
-  const answer = await rl.question(`  ${question} ${DIM}(${hint})${RESET}: `);
-  const normalized = answer.trim().toLowerCase();
-  if (!normalized) return defaultYes;
-  return normalized === "y" || normalized === "yes";
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-print("");
-print(`${BOLD}${CYAN}╔══════════════════════════════════════╗${RESET}`);
-print(`${BOLD}${CYAN}║       Welcome to Lumina Setup        ║${RESET}`);
-print(`${BOLD}${CYAN}╚══════════════════════════════════════╝${RESET}`);
-print("");
-dim("This will configure your visualizer. Takes about 60 seconds.");
-print("");
-
-// ── Artist name ──────────────────────────────────────────────────────────────
-header("Artist");
-const artistName = await ask("Your artist name");
-
-if (!artistName) {
-  warn("Artist name is required. Please run npm run setup again.");
-  rl.close();
-  process.exit(1);
-}
-
-// ── Album title (optional) ────────────────────────────────────────────────────
-header("Album (optional)");
-dim("  If you're releasing a full album, enter its title. Otherwise press Enter to skip.");
-const albumTitle = await ask("Album title", "");
-
-// ── Tracks ────────────────────────────────────────────────────────────────────
-header("Tracks");
-const trackCountStr = await ask("How many tracks?", "1");
-const trackCount = Math.max(1, Math.min(50, parseInt(trackCountStr, 10) || 1));
-
-const trackEntries = [];
-for (let i = 1; i <= trackCount; i++) {
-  const name = await ask(`Track ${i} name`);
-  const trackName = name || `Track ${i}`;
-
-  const hasLyrics = await askYesNo(`  Does "${trackName}" have a lyrics file? (.lrc)`, false);
-  let lrcFile = null;
-  if (hasLyrics) {
-    lrcFile = await ask(`  Lyrics filename`, `track${i}.lrc`);
-    if (!lrcFile.endsWith(".lrc")) lrcFile += ".lrc";
-  }
-
-  trackEntries.push({ name: trackName, lrcFile });
-}
-
-const trackNames = trackEntries.map(t => t.name);
-
-// ── File naming instructions ──────────────────────────────────────────────────
-print("");
-print(`${BOLD}────────────────────────────────────────────────────────${RESET}`);
-header("Next: Add your files");
-print("");
-print("  Drop your MP3s into  public/tracks/  and name them:");
-print("");
-
-for (let i = 0; i < trackEntries.length; i++) {
-  print(`    ${CYAN}public/tracks/track${i + 1}.mp3${RESET}  →  ${BOLD}${trackEntries[i].name}${RESET}`);
-}
-
-const lrcTracks = trackEntries.filter(t => t.lrcFile);
-if (lrcTracks.length > 0) {
-  print("");
-  print("  Drop your LRC lyric files into  public/lyrics/  and name them:");
-  print("");
-  for (const t of lrcTracks) {
-    print(`    ${CYAN}public/lyrics/${t.lrcFile}${RESET}  →  ${BOLD}${t.name}${RESET}`);
-  }
-}
-
-print("");
-warn("The order above must match the order you entered your track names.");
-print(`${BOLD}────────────────────────────────────────────────────────${RESET}`);
-
-// ── Wait for confirmation ─────────────────────────────────────────────────────
-print("");
-await askYesNo("Done adding your MP3 files?", true);
-
-// ── Build config ──────────────────────────────────────────────────────────────
-const tracks = trackEntries.map((entry, i) => ({
-  id: `track-${String(i + 1).padStart(2, "0")}`,
-  title: entry.name,
-  src: `/tracks/track${i + 1}.mp3`,
-  lrcFile: entry.lrcFile,
-}));
-
-const configContent = generateConfig({ artistName, albumTitle, tracks });
-
-const configPath = join(ROOT, "lumina.config.ts");
-writeFileSync(configPath, configContent, "utf-8");
-
-print("");
-success("lumina.config.ts saved.");
-
-// ── Deploy ────────────────────────────────────────────────────────────────────
-print("");
-header("Deploy to Vercel");
-dim("  Run this command to save your changes and trigger a Vercel deploy:");
-print("");
-print(`  ${BOLD}${CYAN}git add . && git commit -m "my tracks" && git push${RESET}`);
-print("");
-
-const shouldDeploy = await askYesNo("Run this now?", false);
-
-if (shouldDeploy) {
-  print("");
-  print("  Deploying...");
-  try {
-    execSync('git add . && git commit -m "my tracks" && git push', {
-      cwd: ROOT,
-      stdio: "inherit",
-    });
-    print("");
-    success("Pushed! Vercel will deploy automatically.");
-  } catch {
-    warn("Git push failed. You may need to run the command manually.");
-    print(`  ${CYAN}git add . && git commit -m "my tracks" && git push${RESET}`);
-  }
-} else {
-  print("  When you're ready, run:");
-  print(`  ${BOLD}${CYAN}git add . && git commit -m "my tracks" && git push${RESET}`);
-}
-
-print("");
-success("Setup complete. Enjoy Lumina!");
-print("");
-
-rl.close();
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Config generator
-// ─────────────────────────────────────────────────────────────────────────────
-
-function generateConfig({ artistName, albumTitle, tracks }) {
+function generateConfig({ artistName, albumTitle, trackEntries, storeUrl }) {
   const hasAlbum = albumTitle && albumTitle.trim().length > 0;
+  const hasStoreUrl = storeUrl && storeUrl.trim().length > 0;
 
-  const tracksCode = tracks
+  const tracksCode = trackEntries
     .map(
-      (t, i) => {
-        const lyricsBlock = t.lrcFile
-          ? `\n      lyrics: {\n        type: "timed",\n        src: "/lyrics/${escStr(t.lrcFile)}",\n      },`
-          : "";
-        return `    {
-      id: "${t.id}",
-      title: "${escStr(t.title)}",
-      src: "${t.src}",
-      visual: {
+      (entry, i) => {
+        const id = `track-${String(i + 1).padStart(2, "0")}`;
+        const title = entry.name;
+        const srcLine = entry.isVideo ? "" : `      src: "/tracks/${escStr(entry.audioFile)}",\n`;
+        const visualBlock = entry.isVideo
+          ? `      visual: {
+        type: "video",
+        src: "/videos/${escStr(entry.videoFile)}",
+        loop: false,
+      },`
+          : `      visual: {
         type: "reactive",
         scene: "particles",
-      },${lyricsBlock}
-    }${i < tracks.length - 1 ? "," : ""}`;
+      },`;
+        const lyricsBlock = entry.lyricsType
+          ? `\n      lyrics: {\n        type: "${entry.lyricsType}",\n        ${entry.lyricsType === "timed" ? "src" : "text"}: "${escStr(entry.lyricsContent)}",\n      },`
+          : "";
+        return `    {
+      id: "${id}",
+      title: "${escStr(title)}",${srcLine}${visualBlock}${lyricsBlock}
+    }${i < trackEntries.length - 1 ? "," : ""}`;
       }
     )
     .join("\n");
@@ -218,6 +36,11 @@ function generateConfig({ artistName, albumTitle, tracks }) {
   },`
     : `
   album: null,`;
+
+  const storeUrlBlock = hasStoreUrl
+    ? `
+  storeUrl: "${escStr(storeUrl)}",`
+    : "";
 
   return `// lumina.config.ts
 // Generated by npm run setup — edit freely.
@@ -239,7 +62,7 @@ ${albumBlock}
 
   tracks: [
 ${tracksCode}
-  ],
+  ],${storeUrlBlock}
 
   features: {
     showPlaylist: true,

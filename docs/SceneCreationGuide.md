@@ -8,6 +8,7 @@
 4. **Register your scene in `VisualizerManager.tsx`**
 5. **Add to `lib/config.ts` enum**
 6. **Use in `lumina.config.ts`**
+7. **Refine your visualizer by using the SceneRefinePrompt.md**
 
 ## Scene Registration
 

@@ -12,12 +12,12 @@ import { LyricsPanel } from "./LyricsPanel";
 import { PlaylistRail } from "./PlaylistRail";
 import { VisualizerManager } from "../visualizer/VisualizerManager";
 import { useLyrics } from "@/hooks/useLyrics";
+import config from "@/lumina.config";
 
 const IDLE_TIMEOUT_MS = 3000;
 
 export function PlayerShell() {
   const isPlaylistOpen = usePlayerStore(s => s.isPlaylistOpen);
-  const isStoreOpen = usePlayerStore(s => s.isStoreOpen);
   const isLyricsVisible = usePlayerStore(s => s.isLyricsVisible);
   const togglePlaylist = usePlayerStore(s => s.togglePlaylist);
   const toggleLyrics = usePlayerStore(s => s.toggleLyrics);
@@ -49,7 +49,7 @@ export function PlayerShell() {
   }, []);
 
   // UI is visible when not idle, OR when a panel is open
-  const uiVisible = !isIdle || isPlaylistOpen || isStoreOpen;
+  const uiVisible = !isIdle || isPlaylistOpen;
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -91,14 +91,13 @@ export function PlayerShell() {
         case 'Escape':
           e.preventDefault();
           if (isPlaylistOpen) togglePlaylist();
-          // TODO: Close store drawer when implemented
           break;
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaylistOpen, isStoreOpen, togglePlaylist, nextTrack, prevTrack]);
+  }, [isPlaylistOpen, togglePlaylist, nextTrack, prevTrack]);
 
   return (
     <div
@@ -143,7 +142,10 @@ export function PlayerShell() {
               >
                 📋
               </button>
-              <button className="p-2 rounded-full bg-accent/20 hover:bg-accent/30 transition-colors">
+              <button
+                onClick={config.storeUrl ? () => window.open(config.storeUrl, '_blank') : undefined}
+                className="p-2 rounded-full bg-accent/20 hover:bg-accent/30 transition-colors"
+              >
                 🛍️
               </button>
             </div>
@@ -164,26 +166,6 @@ export function PlayerShell() {
 
       {/* Playlist Rail - Outside UI overlays for proper z-index */}
       <PlaylistRail />
-
-      {/* Store Drawer - Outside UI overlays for proper z-index */}
-      <div className={`fixed top-0 right-0 h-full w-96 bg-background/95 backdrop-blur-md transform transition-transform duration-300 ${
-        isStoreOpen ? "translate-x-0" : "translate-x-full"
-      }`}>
-        {/* TODO: StoreDrawer component */}
-        <div className="p-6">
-          <h3 className="text-lg font-bold mb-4">Store</h3>
-          <div className="space-y-4">
-            {/* Product cards */}
-            <div className="p-4 rounded-lg bg-accent/10">
-              <div className="text-sm font-medium">Vinyl LP</div>
-              <div className="text-2xl font-bold">$38</div>
-              <button className="mt-2 px-4 py-2 bg-accent text-background rounded">
-                Buy Now
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

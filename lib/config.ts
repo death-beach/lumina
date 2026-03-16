@@ -62,11 +62,20 @@ const LyricsSchema = z
 const TrackSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
-  src: z.string().min(1),
+  src: z.string().min(1).optional(),
   duration: z.number().optional(),          // optional — Howler reads it at runtime
   artwork: z.string().optional(),
   visual: VisualSchema,
   lyrics: LyricsSchema,
+}).superRefine((data, ctx) => {
+  // src is required for audio tracks, optional for video tracks
+  if (data.visual.type !== "video" && !data.src) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "src is required for audio tracks",
+      path: ["src"],
+    });
+  }
 });
 
 // ── Store (entirely optional) ─────────────────────────────────────────────────
@@ -111,6 +120,7 @@ export const LuminaConfigSchema = z.object({
   theme: ThemeSchema,
   tracks: z.array(TrackSchema).min(1),
   store: StoreSchema,
+  storeUrl: z.string().url().optional(),
   features: FeaturesSchema,
 });
 
