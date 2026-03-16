@@ -31,6 +31,10 @@ export function useVideo(src: string): UseVideoReturn {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     setError(null);
     setIsLoaded(false);
+    setCurrentTime(0);
+    setProgress(0);
+    // Explicitly reset to start so switching tracks always begins from zero
+    video.currentTime = 0;
 
     const handleLoadedMetadata = () => {
       setDuration(video.duration);

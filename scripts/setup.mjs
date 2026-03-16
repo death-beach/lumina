@@ -1,45 +1,299 @@
+#!/usr/bin/env node
+// ─────────────────────────────────────────────────────────────────────────────
+// Lumina Setup Wizard
+// Run with: npm run setup
+// ─────────────────────────────────────────────────────────────────────────────
+
+import * as readline from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
+import { execSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(__dirname, "..");
+
+let rl = readline.createInterface({ input, output });
+
+const RESET = "\x1b[0m";
+const BOLD = "\x1b[1m";
+const CYAN = "\x1b[36m";
+const GREEN = "\x1b[32m";
+const YELLOW = "\x1b[33m";
+const DIM = "\x1b[2m";
+
+function print(msg = "") {
+  console.log(msg);
+}
+
+function header(msg) {
+  print(`\n${BOLD}${CYAN}${msg}${RESET}`);
+}
+
+function success(msg) {
+  print(`${GREEN}✓ ${msg}${RESET}`);
+}
+
+function warn(msg) {
+  print(`${YELLOW}⚠  ${msg}${RESET}`);
+}
+
+function dim(msg) {
+  print(`${DIM}${msg}${RESET}`);
+}
+
+async function ask(question, fallback = "") {
+  const hint = fallback ? ` ${DIM}(${fallback})${RESET}` : "";
+  const answer = await rl.question(`  ${question}${hint}: `);
+  return answer.trim() || fallback;
+}
+
+async function askYesNo(question, defaultYes = false) {
+  const hint = defaultYes ? "Y/n" : "y/N";
+  const answer = await rl.question(`  ${question} ${DIM}(${hint})${RESET}: `);
+  const normalized = answer.trim().toLowerCase();
+  if (!normalized) return defaultYes;
+  return normalized === "y" || normalized === "yes";
+}
+
+// ── Lyrics paste with raw mode stdin ─────────────────────────────────────────
+// In cooked (default) mode the terminal holds the last pasted line in its own
+// line editing buffer until Enter is pressed — our process can never read it.
+// Raw mode bypasses that buffer: every character flows directly to stdin,
+// including the final pasted line. After 500ms of silence we restore normal
+// mode, recreate readline, and return the collected text.
+async function readLyricsRaw() {
+  rl.close();
+
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(true);
+  }
+
+  return new Promise((resolve) => {
+    let collected = "";
+    let timer = null;
+
+    const finish = () => {
+      process.stdin.removeListener("data", onData);
+      if (process.stdin.isTTY) {
+        process.stdin.setRawMode(false);
+      }
+      process.stdin.pause();
+      // Normalize \r\n and bare \r (raw mode sends \r for Enter) to \n
+      const normalized = collected
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n")
+        .trimEnd();
+      // Move to a clean line before continuing
+      process.stdout.write("\n");
+      rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      resolve(normalized);
+    };
+
+    const onData = (chunk) => {
+      const str = chunk.toString();
+      // Ctrl+C in raw mode sends \x03 instead of SIGINT
+      if (str.includes("\x03")) {
+        process.stdout.write("\n");
+        process.exit(130);
+      }
+      collected += str;
+      if (timer) clearTimeout(timer);
+      // 500ms of silence = paste is complete
+      timer = setTimeout(finish, 500);
+    };
+
+    process.stdin.on("data", onData);
+    process.stdin.resume();
+
+    // Safety: move on after 60s with no input
+    setTimeout(() => {
+      if (collected.length === 0) finish();
+    }, 60000);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+print("");
+print(`${BOLD}${CYAN}╔══════════════════════════════════════╗${RESET}`);
+print(`${BOLD}${CYAN}║       Welcome to Lumina Setup        ║${RESET}`);
+print(`${BOLD}${CYAN}╚══════════════════════════════════════╝${RESET}`);
+print("");
+dim("This will configure your visualizer. Takes about 60 seconds.");
+print("");
+
+// ── Artist name ──────────────────────────────────────────────────────────────
+header("Artist");
+const artistName = await ask("Your artist name");
+
+if (!artistName) {
+  warn("Artist name is required. Please run npm run setup again.");
+  rl.close();
+  process.exit(1);
+}
+
+// ── Album title (optional) ────────────────────────────────────────────────────
+header("Album (optional)");
+dim("  If you're releasing a full album, enter its title. Otherwise press Enter to skip.");
+const albumTitle = await ask("Album title", "");
+
+// ── Tracks ────────────────────────────────────────────────────────────────────
+header("Tracks");
+const trackCountStr = await ask("How many tracks?", "1");
+const trackCount = Math.max(1, Math.min(50, parseInt(trackCountStr, 10) || 1));
+
+const trackEntries = [];
+for (let i = 1; i <= trackCount; i++) {
+  const name = await ask(`Track ${i} name`);
+  const trackName = name || `Track ${i}`;
+
+  const isVideo = await askYesNo(`  Is "${trackName}" a music video?`, false);
+  let audioFile = null;
+  let videoFile = null;
+  let lyricsType = null;
+  let lyricsContent = null;
+
+  if (isVideo) {
+    print(`  ${DIM}Host your video on Vimeo, YouTube (unlisted), or any CDN and paste the direct URL.${RESET}`);
+    videoFile = await ask(`  Video URL`, ``);
+  } else {
+    audioFile = await ask(`  Audio filename`, `track${i}.mp3`);
+    audioFile = audioFile.replace(/\.mp3$/i, "") + ".mp3";
+
+    const hasLyrics = await askYesNo(`  Does "${trackName}" have lyrics?`, false);
+    if (hasLyrics) {
+      print(`\n  ${BOLD}Paste your lyrics:${RESET}`);
+      print(`  ${DIM}(Lumina will detect timed or plain lyrics automatically)${RESET}\n`);
+
+      lyricsContent = await readLyricsRaw();
+
+      if (lyricsContent.trim()) {
+        const hasTimestamps = /\[\d{2}:\d{2}\.\d{2}\]/.test(lyricsContent);
+        if (hasTimestamps) {
+          lyricsType = "timed";
+          const lrcFile = `track${i}.lrc`;
+          writeFileSync(join(ROOT, "public/lyrics", lrcFile), lyricsContent, "utf-8");
+          lyricsContent = `/lyrics/${lrcFile}`;
+          success(`Timed lyrics detected — saved as ${lrcFile}`);
+        } else {
+          lyricsType = "static";
+          success("Lyrics saved.");
+        }
+      }
+    }
+  }
+
+  trackEntries.push({ name: trackName, isVideo, audioFile, videoFile, lyricsType, lyricsContent });
+}
+
+// ── File naming instructions ──────────────────────────────────────────────────
+print("");
+print(`${BOLD}────────────────────────────────────────────────────────${RESET}`);
+header("Next: Add your files");
+print("");
+
+const audioTracks = trackEntries.filter(t => !t.isVideo);
+if (audioTracks.length > 0) {
+  print("  Drop your MP3s into  public/tracks/  and name them:");
+  print("");
+  for (let i = 0; i < trackEntries.length; i++) {
+    if (!trackEntries[i].isVideo) {
+      print(`    ${CYAN}public/tracks/${trackEntries[i].audioFile}${RESET}  →  ${BOLD}${trackEntries[i].name}${RESET}`);
+    }
+  }
+  print("");
+}
+
+
+if (audioTracks.length > 0) {
+  warn("The order above must match the order you entered your track names.");
+}
+print(`${BOLD}────────────────────────────────────────────────────────${RESET}`);
+
+// ── Store link (optional) ─────────────────────────────────────────────────────
+header("Store (optional)");
+dim("  Got a merch or store link? Fans will see a store button in the player.");
+const storeUrl = await ask("Store URL", "");
+
+// ── Wait for confirmation ─────────────────────────────────────────────────────
+print("");
+await askYesNo("Done adding your files?", true);
+
+// ── Build config ──────────────────────────────────────────────────────────────
+const configContent = generateConfig({ artistName, albumTitle, trackEntries, storeUrl });
+
+const configPath = join(ROOT, "lumina.config.ts");
+writeFileSync(configPath, configContent, "utf-8");
+
+print("");
+success("lumina.config.ts saved.");
+
+// ── Deploy ────────────────────────────────────────────────────────────────────
+print("");
+header("Deploy to Vercel");
+dim("  Run this command to save your changes and trigger a Vercel deploy:");
+print("");
+print(`  ${BOLD}${CYAN}git add . && git commit -m "my tracks" && git push${RESET}`);
+print("");
+
+const shouldDeploy = await askYesNo("Run this now?", false);
+
+if (shouldDeploy) {
+  print("");
+  print("  Deploying...");
+  try {
+    execSync('git add . && git commit -m "my tracks" && git push', {
+      cwd: ROOT,
+      stdio: "inherit",
+    });
+    print("");
+    success("Pushed! Vercel will deploy automatically.");
+  } catch {
+    warn("Git push failed. You may need to run the command manually.");
+    print(`  ${CYAN}git add . && git commit -m "my tracks" && git push${RESET}`);
+  }
+} else {
+  print("  When you're ready, run:");
+  print(`  ${BOLD}${CYAN}git add . && git commit -m "my tracks" && git push${RESET}`);
+}
+
+print("");
+success("Setup complete. Enjoy Lumina!");
+print("");
+
+rl.close();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Config generator
+// ─────────────────────────────────────────────────────────────────────────────
+
 function generateConfig({ artistName, albumTitle, trackEntries, storeUrl }) {
   const hasAlbum = albumTitle && albumTitle.trim().length > 0;
   const hasStoreUrl = storeUrl && storeUrl.trim().length > 0;
 
   const tracksCode = trackEntries
-    .map(
-      (entry, i) => {
-        const id = `track-${String(i + 1).padStart(2, "0")}`;
-        const title = entry.name;
-        const srcLine = entry.isVideo ? "" : `      src: "/tracks/${escStr(entry.audioFile)}",\n`;
-        const visualBlock = entry.isVideo
-          ? `      visual: {
-        type: "video",
-        src: "/videos/${escStr(entry.videoFile)}",
-        loop: false,
-      },`
-          : `      visual: {
-        type: "reactive",
-        scene: "particles",
-      },`;
-        const lyricsBlock = entry.lyricsType
-          ? `\n      lyrics: {\n        type: "${entry.lyricsType}",\n        ${entry.lyricsType === "timed" ? "src" : "text"}: "${escStr(entry.lyricsContent)}",\n      },`
-          : "";
-        return `    {
-      id: "${id}",
-      title: "${escStr(title)}",${srcLine}${visualBlock}${lyricsBlock}
-    }${i < trackEntries.length - 1 ? "," : ""}`;
-      }
-    )
+    .map((entry, i) => {
+      const id = `track-${String(i + 1).padStart(2, "0")}`;
+      const title = entry.name;
+      const srcLine = entry.isVideo ? "" : `      src: "/tracks/${escStr(entry.audioFile)}",\n`;
+      const visualBlock = entry.isVideo
+        ? `      visual: {\n        type: "video",\n        src: "${escStr(entry.videoFile)}",\n        loop: false,\n      },`
+        : `      visual: {\n        type: "reactive",\n        scene: "particles",\n      },`;
+      const lyricsBlock = entry.lyricsType
+        ? `\n      lyrics: {\n        type: "${entry.lyricsType}",\n        ${entry.lyricsType === "timed" ? "src" : "text"}: "${escStr(entry.lyricsContent)}",\n      },`
+        : "";
+      return `    {\n      id: "${id}",\n      title: "${escStr(title)}",\n${srcLine}${visualBlock}${lyricsBlock}\n    }${i < trackEntries.length - 1 ? "," : ""}`;
+    })
     .join("\n");
 
   const albumBlock = hasAlbum
-    ? `
-  album: {
-    title: "${escStr(albumTitle)}",
-  },`
-    : `
-  album: null,`;
+    ? `\n  album: {\n    title: "${escStr(albumTitle)}",\n  },`
+    : `\n  album: null,`;
 
   const storeUrlBlock = hasStoreUrl
-    ? `
-  storeUrl: "${escStr(storeUrl)}",`
+    ? `\n  storeUrl: "${escStr(storeUrl)}",`
     : "";
 
   return `// lumina.config.ts
@@ -75,5 +329,8 @@ export default config;
 }
 
 function escStr(s) {
-  return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return s
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\r?\n/g, "\\n");
 }

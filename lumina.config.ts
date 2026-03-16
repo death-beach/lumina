@@ -5,11 +5,11 @@ import type { LuminaConfig } from "@/lib/config";
 
 const config: LuminaConfig = {
   artist: {
-    name: "Death Beach",
+    name: "Artist Name",
   },
 
   album: {
-    title: "Scorpian",
+    title: "Title",
   },
 
   theme: {
@@ -22,12 +22,8 @@ const config: LuminaConfig = {
   tracks: [
     {
       id: "track-01",
-      title: "Drunk On The Mic",
+      title: "track one",
       src: "/tracks/track1.mp3",
-      lyrics: {
-        type: "timed",
-        src: "/lyrics/track1.lrc",   // ← add this
-      },
       visual: {
         type: "reactive",
         scene: "particles",
@@ -43,8 +39,6 @@ const config: LuminaConfig = {
       },
     }
   ],
-
-  storeUrl: "https://example.com/store",
 
   features: {
     showPlaylist: true,

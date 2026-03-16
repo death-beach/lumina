@@ -28,22 +28,44 @@ export function PlaylistRail() {
     for (const track of tracks) {
       if (trackDurations[track.id]) continue; // already known
 
-      const audio = new Audio();
-      audio.preload = "metadata";
+      if (track.src) {
+        // Audio track — probe with Audio element
+        const audio = new Audio();
+        audio.preload = "metadata";
 
-      const onLoaded = () => {
-        if (audio.duration && isFinite(audio.duration)) {
-          setTrackDuration(track.id, audio.duration);
-        }
-      };
+        const onLoaded = () => {
+          if (audio.duration && isFinite(audio.duration)) {
+            setTrackDuration(track.id, audio.duration);
+          }
+        };
 
-      audio.addEventListener("loadedmetadata", onLoaded);
-      audio.src = track.src;
+        audio.addEventListener("loadedmetadata", onLoaded);
+        audio.src = track.src;
 
-      cleanups.push(() => {
-        audio.removeEventListener("loadedmetadata", onLoaded);
-        audio.src = "";
-      });
+        cleanups.push(() => {
+          audio.removeEventListener("loadedmetadata", onLoaded);
+          audio.src = "";
+        });
+      } else if (track.visual.type === "video") {
+        // Video track — probe with a hidden video element
+        const videoSrc = (track.visual as { type: "video"; src: string }).src;
+        const vid = document.createElement("video");
+        vid.preload = "metadata";
+
+        const onLoaded = () => {
+          if (vid.duration && isFinite(vid.duration)) {
+            setTrackDuration(track.id, vid.duration);
+          }
+        };
+
+        vid.addEventListener("loadedmetadata", onLoaded);
+        vid.src = videoSrc;
+
+        cleanups.push(() => {
+          vid.removeEventListener("loadedmetadata", onLoaded);
+          vid.src = "";
+        });
+      }
     }
 
     return () => cleanups.forEach(fn => fn());

@@ -7,15 +7,24 @@ import { useVideo } from "@/hooks/useVideo";
 
 export function VideoEngine() {
   const isPlaying = usePlayerStore(s => s.isPlaying);
-  const currentTrackIndex = usePlayerStore(s => s.currentTrackIndex);
+  const seekTarget = usePlayerStore(s => s.seekTarget);
+  const setSeekTarget = usePlayerStore(s => s.setSeekTarget);
   const setIsPlaying = usePlayerStore(s => s.setIsPlaying);
-  const { currentTrack } = usePlaylist();
+  const setTrackDuration = usePlayerStore(s => s.setTrackDuration);
+  const { currentTrack, nextTrack, hasNext } = usePlaylist();
 
   // Only render if current track is video type
   const isVideoTrack = currentTrack?.visual.type === "video";
   const videoSrc = isVideoTrack ? (currentTrack.visual as { type: "video"; src: string; loop?: boolean }).src : "";
 
-  const { videoRef, play, pause, isLoaded, error } = useVideo(videoSrc);
+  const { videoRef, play, pause, seek, duration, isLoaded, error } = useVideo(videoSrc);
+
+  // Report video duration to the store so controls can display it
+  useEffect(() => {
+    if (isLoaded && duration > 0 && currentTrack?.id) {
+      setTrackDuration(currentTrack.id, duration);
+    }
+  }, [duration, isLoaded, currentTrack?.id, setTrackDuration]);
 
   // Sync playback state
   useEffect(() => {
@@ -28,7 +37,33 @@ export function VideoEngine() {
     }
   }, [isPlaying, isVideoTrack, isLoaded, play, pause]);
 
+  // Handle user-initiated seeking
+  useEffect(() => {
+    if (!isVideoTrack || !isLoaded || !duration || seekTarget === null) return;
 
+    const seekTime = seekTarget * duration;
+    seek(seekTime);
+    setSeekTarget(null);
+  }, [seekTarget, duration, isVideoTrack, isLoaded, seek, setSeekTarget]);
+
+  // Auto-advance to next track when video ends
+  useEffect(() => {
+    if (!isVideoTrack || !videoRef.current) return;
+
+    const video = videoRef.current;
+    const handleEnded = () => {
+      if (hasNext) {
+        nextTrack();
+      } else {
+        setIsPlaying(false);
+      }
+    };
+
+    video.addEventListener("ended", handleEnded);
+    return () => {
+      video.removeEventListener("ended", handleEnded);
+    };
+  }, [isVideoTrack, hasNext, nextTrack, setIsPlaying, videoRef]);
 
   // Log errors
   useEffect(() => {
@@ -48,7 +83,7 @@ export function VideoEngine() {
       src={videoSrc}
       className="absolute inset-0 w-full h-full object-cover"
       playsInline
-      muted={false} // Video has baked-in audio
+      muted={false}
       loop={(currentTrack.visual as { type: "video"; src: string; loop?: boolean }).loop || false}
       preload="metadata"
     />

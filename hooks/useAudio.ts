@@ -18,6 +18,8 @@ interface UseAudioReturn {
 
 export function useAudio(src: string): UseAudioReturn {
   const howlRef = useRef<Howl | null>(null);
+  // Single slot for end callback — replaces rather than stacking listeners
+  const endCallbackRef = useRef<(() => void) | null>(null);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -95,7 +97,8 @@ export function useAudio(src: string): UseAudioReturn {
         pollProgress();
       },
       onend: () => {
-        // Handle track end (will be enhanced with playlist logic)
+        // Fire the single registered end callback (if any)
+        endCallbackRef.current?.();
       },
     });
 
@@ -147,10 +150,9 @@ export function useAudio(src: string): UseAudioReturn {
     }
   }, []);
 
+  // Set the end callback — replaces any previous one, never stacks
   const onEnd = useCallback((callback: () => void) => {
-    if (howlRef.current) {
-      howlRef.current.on('end', callback);
-    }
+    endCallbackRef.current = callback;
   }, []);
 
   return {

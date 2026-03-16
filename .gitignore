@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Video files — too large for GitHub (>100MB). Host on Vimeo/CDN and reference by URL in lumina.config.ts
+public/videos/

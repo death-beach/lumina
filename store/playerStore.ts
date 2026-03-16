@@ -60,7 +60,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   trackDurations: {},
 
   // Basic setters
-  setCurrentTrackIndex: (index) => set({ currentTrackIndex: index }),
+  setCurrentTrackIndex: (index) => set({ currentTrackIndex: index, progress: 0, seekTarget: null }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
   setVolume: (volume) => set({ volume: Math.max(0, Math.min(1, volume)) }),
   setProgress: (progress) => set({ progress: Math.max(0, Math.min(1, progress)) }),
@@ -80,13 +80,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   play: () => set({ isPlaying: true }),
   pause: () => set({ isPlaying: false }),
   nextTrack: () => {
-    // This will be enhanced with playlist logic later
     const { currentTrackIndex } = get();
-    set({ currentTrackIndex: currentTrackIndex + 1 });
+    set({ currentTrackIndex: currentTrackIndex + 1, progress: 0, seekTarget: null });
   },
   prevTrack: () => {
     const { currentTrackIndex } = get();
-    set({ currentTrackIndex: Math.max(0, currentTrackIndex - 1) });
+    set({ currentTrackIndex: Math.max(0, currentTrackIndex - 1), progress: 0, seekTarget: null });
   },
   seekTo: (progress) => set({ seekTarget: progress, progress }),
   setVolumeLevel: (level) => set({ volume: Math.max(0, Math.min(1, level)) }),
