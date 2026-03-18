@@ -156,7 +156,7 @@ for (let i = 1; i <= trackCount; i++) {
   let lyricsContent = null;
 
   if (isVideo) {
-    print(`  ${DIM}Host your video on Vimeo, YouTube (unlisted), or any CDN and paste the direct URL.${RESET}`);
+    print(`  ${DIM}Paste a YouTube URL (e.g., https://www.youtube.com/watch?v=...) or a direct MP4 link.${RESET}`);
     videoFile = await ask(`  Video URL`, ``);
   } else {
     audioFile = await ask(`  Audio filename`, `track${i}.mp3`);
