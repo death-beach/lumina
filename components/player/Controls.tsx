@@ -3,12 +3,6 @@
 import { usePlayerStore } from "@/store/playerStore";
 import { usePlaylist } from "@/hooks/usePlaylist";
 
-// Check if URL is a YouTube video
-function isYouTubeUrl(url: string): boolean {
-  if (!url) return false;
-  return /youtube\.com\/watch|youtu\.be\/|youtube\.com\/embed/.test(url);
-}
-
 export function Controls() {
   const isPlaying = usePlayerStore(s => s.isPlaying);
   const volume = usePlayerStore(s => s.volume);
@@ -19,12 +13,7 @@ export function Controls() {
   const toggleMute = usePlayerStore(s => s.toggleMute);
   const seekTo = usePlayerStore(s => s.seekTo);
 
-  const { hasNext, hasPrev, nextTrack, prevTrack, currentTrack } = usePlaylist();
-
-  // Hide progress bar for YouTube videos (can't sync with iframe)
-  const isVideoTrack = currentTrack?.visual.type === "video";
-  const videoSrc = isVideoTrack ? (currentTrack.visual as { type: "video"; src: string }).src : "";
-  const hideProgressBar = isYouTubeUrl(videoSrc);
+  const { hasNext, hasPrev, nextTrack, prevTrack } = usePlaylist();
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
@@ -80,20 +69,18 @@ export function Controls() {
         </button>
       </div>
 
-      {/* Progress Bar - hidden for YouTube videos */}
-      {!hideProgressBar && (
-        <div className="w-full">
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.001"
-            value={progress}
-            onChange={handleSeek}
-            className="w-full h-2 bg-foreground/20 rounded-lg appearance-none cursor-pointer slider"
-          />
-        </div>
-      )}
+      {/* Progress Bar */}
+      <div className="w-full">
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.001"
+          value={progress}
+          onChange={handleSeek}
+          className="w-full h-2 bg-foreground/20 rounded-lg appearance-none cursor-pointer slider"
+        />
+      </div>
 
       {/* Volume Control */}
       <div className="flex items-center gap-3">
