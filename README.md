@@ -48,8 +48,8 @@ You'll need:
    This will ask you for your artist name, album details, track names, and lyrics. **You can use any filenames for your music files** — the wizard will tell you exactly what to name each file.
 
 4. **Add your music files:**
-   - Place your MP3 files in the `public/tracks/` folder
-   - Name them exactly as the setup wizard instructed (it shows you the required names)
+   - The setup wizard will open your `public/tracks/` folder automatically
+   - Copy and paste your MP3 files into it — use the exact filenames you entered during setup
 
 5. **Add lyrics (optional):**
    - For timed lyrics: The wizard auto-saves `.lrc` files to `public/lyrics/`
