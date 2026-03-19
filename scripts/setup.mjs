@@ -10,6 +10,7 @@ import { execSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { platform } from "node:os";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -67,7 +68,12 @@ async function readLyricsRaw() {
   rl.close();
 
   if (process.stdin.isTTY) {
-    process.stdin.setRawMode(true);
+    try {
+      process.stdin.setRawMode(true);
+    } catch {
+      // Raw mode not supported (e.g., Windows cmd.exe)
+      // Fall back to cooked mode - user may need to press Enter after paste
+    }
   }
 
   return new Promise((resolve) => {
@@ -196,7 +202,8 @@ print("");
 
 const audioTracks = trackEntries.filter(t => !t.isVideo);
 if (audioTracks.length > 0) {
-  print("  Drop your MP3s into  public/tracks/  and name them:");
+  print("  Copy and paste your MP3s into the public/tracks/ folder. The folder will be opened for you.");
+  print("  Make sure each file is named exactly as shown:");
   print("");
   for (let i = 0; i < trackEntries.length; i++) {
     if (!trackEntries[i].isVideo) {
@@ -205,12 +212,29 @@ if (audioTracks.length > 0) {
   }
   print("");
 }
-
-
-if (audioTracks.length > 0) {
-  warn("The order above must match the order you entered your track names.");
-}
 print(`${BOLD}────────────────────────────────────────────────────────${RESET}`);
+
+// ── Open tracks folder ────────────────────────────────────────────────────────
+if (audioTracks.length > 0) {
+  print("");
+  const shouldOpenFolder = await askYesNo("Ready to add your MP3 files?", false);
+
+  if (shouldOpenFolder) {
+    const tracksPath = join(ROOT, "public/tracks");
+    const openCmd = platform() === "win32"
+      ? `explorer "${tracksPath.replace(/\//g, "\\")}"`
+      : platform() === "darwin"
+      ? `open "${tracksPath}"`
+      : `xdg-open "${tracksPath}"`;
+
+    try {
+      execSync(openCmd);
+      success("Opened public/tracks/ folder");
+    } catch {
+      warn("Could not open folder automatically. Please navigate to public/tracks/ manually.");
+    }
+  }
+}
 
 // ── Store link (optional) ─────────────────────────────────────────────────────
 header("Store (optional)");
