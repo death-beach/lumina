@@ -108,7 +108,7 @@ The setup wizard handles everything automatically:
 
 ### Visualizers
 
-Use docs/SceneCreationGuide.md to create stunning visulizers in the LLM of your choice. Gemini Pro or Claude or Grok recommended.
+Use docs/SceneCreationGuide.md to create stunning visulizers in the LLM of your choice. Gemini Pro or Claude or Grok recommended. Follow docs/Use_New_Visualizer_Inst.md to use your newly created visualizer for a song.
 
 ### Store Link
 
