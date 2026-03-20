@@ -83,8 +83,20 @@ const lyricsDir = join(ROOT, "public", "lyrics");
 if (existsSync(lyricsDir)) {
   const files = readdirSync(lyricsDir);
   for (const file of files) {
-    if (file.endsWith(".lrc") && file !== "track1.lrc") {
+    if ((file.endsWith(".lrc") || file.endsWith(".txt")) && file !== ".gitkeep") {
       unlinkSync(join(lyricsDir, file));
+      success(`Removed ${file}`);
+    }
+  }
+}
+
+// ── Clean up public/tracks/ ──────────────────────────────────────────────────
+const tracksDir = join(ROOT, "public", "tracks");
+if (existsSync(tracksDir)) {
+  const files = readdirSync(tracksDir);
+  for (const file of files) {
+    if (file !== ".gitkeep") {
+      unlinkSync(join(tracksDir, file));
       success(`Removed ${file}`);
     }
   }
@@ -107,7 +119,7 @@ success("Test environment reset complete!");
 print("");
 print("Baseline state:");
 print("  lumina.config.ts: 2 tracks (track-01 with timed lyrics, track-02 no lyrics)");
-print("  public/lyrics/: only track1.lrc remains");
-print("  public/tracks/: unchanged");
+print("  public/lyrics/: empty");
+print("  public/tracks/: empty");
 print("  public/videos/: empty");
 print("");
