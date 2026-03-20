@@ -59,24 +59,28 @@ const LyricsSchema = z
   .optional();
 
 // ── Track ─────────────────────────────────────────────────────────────────────
-const TrackSchema = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  src: z.string().min(1).optional(),
-  duration: z.number().optional(),          // optional — Howler reads it at runtime
-  artwork: z.string().optional(),
-  visual: VisualSchema,
-  lyrics: LyricsSchema,
-}).superRefine((data, ctx) => {
-  // src is required for audio tracks, optional for video tracks
-  if (data.visual.type !== "video" && !data.src) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "src is required for audio tracks",
-      path: ["src"],
-    });
-  }
-});
+const TrackSchema = z.discriminatedUnion("visual.type", [
+  // Audio track (reactive visual)
+  z.object({
+    id: z.string().min(1),
+    title: z.string().min(1),
+    src: z.string().min(1), // required for audio tracks
+    duration: z.number().optional(),
+    artwork: z.string().optional(),
+    visual: ReactiveVisualSchema,
+    lyrics: LyricsSchema,
+  }),
+  // Video track (video visual)
+  z.object({
+    id: z.string().min(1),
+    title: z.string().min(1),
+    src: z.string().optional(), // optional for video tracks (src lives in visual.src)
+    duration: z.number().optional(),
+    artwork: z.string().optional(),
+    visual: VideoVisualSchema,
+    lyrics: LyricsSchema,
+  }),
+]);
 
 // ── Store (entirely optional) ─────────────────────────────────────────────────
 const StoreSchema = z

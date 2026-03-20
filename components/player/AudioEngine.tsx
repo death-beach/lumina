@@ -16,7 +16,10 @@ export function AudioEngine() {
 
   // Only use audio if current track is audio type
   const isAudioTrack = currentTrack?.visual.type === "reactive";
-  const audioSrc = isAudioTrack ? currentTrack.src : "";
+  let audioSrc = "";
+  if (currentTrack && currentTrack.visual.type === "reactive") {
+    audioSrc = currentTrack.src as string;
+  }
 
   const { play, pause, seek, duration, isLoaded, error, onEnd } = useAudio(audioSrc);
 
