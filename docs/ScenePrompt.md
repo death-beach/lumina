@@ -60,8 +60,8 @@ When generating random values, use this exact pattern to ensure purity and preve
 
 ```typescript
 const seededRandom = useMemo(() => {
-  let seed = 12345;
   return () => {
+    let seed = 12345;
     seed = (seed * 9301 + 49297) % 233280;
     return seed / 233280;
   };
@@ -69,6 +69,125 @@ const seededRandom = useMemo(() => {
 ```
 
 Use `seededRandom()` instead of `Math.random()` throughout the component.
+
+### Common Pitfalls
+
+**❌ WRONG: Declaring seed outside the returned function**
+
+```typescript
+const seededRandom = useMemo(() => {
+  let seed = 12345; // ❌ This violates React Compiler immutability
+  return () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+}, []);
+```
+
+**✅ CORRECT: Declaring seed inside the returned function**
+
+```typescript
+const seededRandom = useMemo(() => {
+  return () => {
+    let seed = 12345; // ✅ Seed declared inside the function
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+}, []);
+```
+
+**❌ WRONG: Using let for variables that are never reassigned**
+
+```typescript
+let x = positions[i]; // ❌ ESLint will suggest const
+let y = positions[i + 1];
+let z = positions[i + 2];
+```
+
+**✅ CORRECT: Use const for read-only variables**
+
+```typescript
+const x = positions[i]; // ✅ Use const when not reassigning
+const y = positions[i + 1];
+const z = positions[i + 2];
+```
+
+## React Hooks Best Practices (CRITICAL)
+
+### Refs and useMemo
+
+**❌ NEVER: Access refs inside useMemo callbacks**
+
+```typescript
+const { geometry, material } = useMemo(() => {
+  // ... geometry creation ...
+  velocitiesRef.current = velocities; // ❌ Ref access during render
+  return { geometry, material };
+}, []);
+```
+
+**✅ CORRECT: Use useEffect for ref assignments**
+
+```typescript
+const { geometry, material, velocities } = useMemo(() => {
+  // ... geometry creation ...
+  return { geometry, material, velocities };
+}, []);
+
+useEffect(() => {
+  velocitiesRef.current = velocities; // ✅ Ref access in effect
+}, [velocities]);
+```
+
+### Component Purity Rules
+
+- **Render functions must be pure**: Same inputs = same outputs
+- **No side effects in render**: Don't modify refs, call APIs, or mutate state
+- **No impure function calls**: Avoid Math.random(), Date.now(), or other non-deterministic calls
+- **Use seeded random**: Always use the provided seeded random pattern for any randomness
+
+### Memory Management
+
+**❌ AVOID: Creating new arrays/objects in render loops**
+
+```typescript
+useFrame(() => {
+  const tempArray = new Float32Array(1000); // ❌ Creates garbage every frame
+  // ... processing ...
+});
+```
+
+**✅ CORRECT: Pre-allocate and reuse**
+
+```typescript
+const tempArray = useRef(new Float32Array(1000));
+useFrame(() => {
+  // Reuse the same array, just update values
+  // ... processing ...
+});
+```
+
+## Debugging Common Errors
+
+### ESLint Error: "Cannot reassign variable after render completes"
+
+**Cause**: Variable declared outside seeded random function
+**Solution**: Move seed declaration inside the returned function
+
+### ESLint Error: "Cannot access refs during render"
+
+**Cause**: Accessing ref.current inside useMemo or render
+**Solution**: Use useEffect for ref assignments, or avoid storing mutable data in refs
+
+### ESLint Error: "prefer-const"
+
+**Cause**: Using let for variables that are never reassigned
+**Solution**: Use const for read-only variables, let only when reassignment is needed
+
+### Performance Issues
+
+**Cause**: Creating new geometries, materials, or arrays every frame
+**Solution**: Use useMemo for static data, useRef for mutable state, and avoid allocations in useFrame
 
 COMMON ERROR PREVENTION:
 
@@ -167,6 +286,19 @@ INTEGRATION REQUIREMENTS:
 - The component name MUST match the scene key in lumina.config.ts
 - The component name MUST be added to the enum in lib/config.ts
 - The component MUST be imported and added to SCENE_MAP in VisualizerManager.tsx
+
+## Code Review Checklist
+
+Before submitting your visualizer, ensure:
+
+- [ ] All random values use the seeded random pattern
+- [ ] No refs are accessed inside useMemo callbacks
+- [ ] Variables are declared with const when not reassigned
+- [ ] No new arrays/objects are created in useFrame
+- [ ] All geometry/material creation is memoized with useMemo
+- [ ] Component follows the exact 2-component structure
+- [ ] Export name matches filename exactly
+- [ ] Audio bands are mapped correctly (bass→expansion, mids→flow, highs→sparkle)
 
 STRICT OUTPUT FORMAT:
 Return ONLY the complete React component code.
