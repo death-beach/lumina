@@ -38,7 +38,7 @@ const ThemeSchema = z
 // ── Visuals ───────────────────────────────────────────────────────────────────
 const ReactiveVisualSchema = z.object({
   type: z.literal("reactive"),
-  scene: z.enum(["particles", "waveform", "nebula", "tesseract", "pillar"]).optional(),
+  scene: z.enum(["particles", "waveform", "nebula", "tesseract", "pillar", "sloworbit"]).optional(),
   colorOverride: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
 });
 
