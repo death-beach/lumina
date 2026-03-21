@@ -4,6 +4,34 @@ Follow these four steps in order. All paths are relative to the project root.
 
 ---
 
+## QUICK START
+
+1. Create and Add the visualizer to components/visualizer
+2. Add the visualizer as an option for tracks in `lib/config.ts`
+
+- Find the `ReactiveVisualSchema` and add your scene to the list
+- scene: z.enum(["particles", "waveform", "nebula", "ronin"]).optional(),
+
+3. Add to the SCENE_MAP in VisualizerManager `components/visualizer/VisualizerManager.tsx`
+
+- const SCENE_MAP: Record<string, React.ComponentType> = {
+  particles: SongSingularity,
+  waveform: WaveForm,
+  ronin: RoninMaxilism,
+  "your-key": YourVisualizer, // ← add this line
+  };
+
+4. Find the track and Assign it in `lumina.config.ts`
+
+- {
+  id: "track-03",
+  title: "My Track",
+  src: "/tracks/track3.mp3",
+  visual: {
+  type: "reactive",
+  scene: "your-key", // ← matches the key added in Steps 2 & 3
+  },
+
 ## Step 1 — Create the component file
 
 **Location:** `components/visualizer/YourVisualizer.tsx`
