@@ -25,33 +25,43 @@ export function useAudio(src: string): UseAudioReturn {
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
+  const retryCountRef = useRef(0);
+  const maxRetries = 3;
 
   const { volume, isMuted, setProgress, setAudioContext, setAnalyserNode: setStoreAnalyser } = usePlayerStore();
 
-  // Initialize Howler instance
-  useEffect(() => {
-    if (!src) return;
-
-    // Clean up previous instance
-    if (howlRef.current) {
-      howlRef.current.unload();
+  // Helper function to check if Web Audio API is ready
+  const isWebAudioReady = (): boolean => {
+    try {
+      if (typeof window === 'undefined') return false;
+      if (!window.AudioContext && !(window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext) return false;
+      
+      const AudioContextType: typeof AudioContext = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AudioContextType();
+      
+      // Check if context is suspended and try to resume
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      
+      return ctx.state === 'running';
+    } catch (err) {
+      console.warn('Web Audio API not available:', err);
+      return false;
     }
+  };
 
-    // Reset state
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    setError(null);
-    setIsLoaded(false);
-    setAnalyserNode(null);
-    setStoreAnalyser(null);
-
+  // Helper function to create Howl instance with retry logic
+  const createHowlWithRetry = (source: string, retryCount: number = 0): Howl => {
     const howl = new Howl({
-      src: [src],
+      src: [source],
       format: ['wav', 'mp3', 'ogg'], // Explicitly support WAV
       html5: false, // Use Web Audio API
       volume: isMuted ? 0 : volume,
       onload: () => {
         setDuration(howl.duration());
         setIsLoaded(true);
+        retryCountRef.current = 0; // Reset retry count on success
 
         // Set up Web Audio API analyser using Howler's public APIs
         try {
@@ -82,7 +92,20 @@ export function useAudio(src: string): UseAudioReturn {
         }
       },
       onloaderror: (id, err) => {
-        setError(`Failed to load audio: ${err}`);
+        console.error(`Audio load error (attempt ${retryCount + 1}/${maxRetries + 1}):`, err);
+        
+        if (retryCount < maxRetries && isWebAudioReady()) {
+          console.log(`Retrying audio load in 500ms...`);
+          setTimeout(() => {
+            retryCountRef.current = retryCount + 1;
+            // Clean up current instance and retry
+            howl.unload();
+            const newHowl = createHowlWithRetry(source, retryCount + 1);
+            howlRef.current = newHowl;
+          }, 500);
+        } else {
+          setError(`Failed to load audio after ${retryCount + 1} attempts: ${err}`);
+        }
       },
       onplay: () => {
         // Start progress polling
@@ -102,14 +125,37 @@ export function useAudio(src: string): UseAudioReturn {
       },
     });
 
-    howlRef.current = howl;
+    return howl;
+  };
+
+  // Initialize Howler instance
+  useEffect(() => {
+    if (!src) return;
+
+    // Clean up previous instance
+    if (howlRef.current) {
+      howlRef.current.unload();
+    }
+
+    // Reset state
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setError(null);
+    setIsLoaded(false);
+    setAnalyserNode(null);
+    setStoreAnalyser(null);
+
+    // Create Howl instance with retry logic
+    const newHowl = createHowlWithRetry(src, 0);
+    howlRef.current = newHowl;
 
     return () => {
-      howl.unload();
+      if (howlRef.current) {
+        howlRef.current.unload();
+      }
       setAnalyserNode(null);
       setStoreAnalyser(null);
     };
-  }, [src]);
+  }, [src, volume, isMuted, setProgress, setAudioContext, setStoreAnalyser]);
 
   // Update volume when store changes
   useEffect(() => {

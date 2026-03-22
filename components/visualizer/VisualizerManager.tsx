@@ -4,7 +4,9 @@ import { usePlaylist } from "@/hooks/usePlaylist";
 import SongSingularity from "./SongSingularity";
 import BreathingTesseract from "./BreathingTesseract";
 import Pillar from "./Pillar";
-import SlowOrbit from "./SlowOrbit"
+
+// Raw heavy particle scenes (these use pure Three.js)
+import SlowOrbit from "./SlowOrbit";
 
 const SCENE_MAP: Record<string, React.ComponentType> = {
   particles: SongSingularity,
@@ -12,6 +14,8 @@ const SCENE_MAP: Record<string, React.ComponentType> = {
   nebula: SongSingularity,
   tesseract: BreathingTesseract,
   pillar: Pillar,
+
+  // Raw heavy scenes (bypass mode)
   sloworbit: SlowOrbit,
 };
 
@@ -32,10 +36,11 @@ export function VisualizerManager() {
     );
   }
 
-  // Get the visualizer component based on the scene type
-  const sceneType = currentTrack?.visual.type === "reactive" ? currentTrack.visual.scene : "particles";
-  const VisualizerComponent = SCENE_MAP[sceneType || "particles"] || SongSingularity;
+  const visual = currentTrack?.visual;
+  const sceneType = visual?.type === "reactive" ? visual.scene : "particles";
 
+  const VisualizerComponent = SCENE_MAP[sceneType || "particles"] || SongSingularity;
+  
   // Show the reactive visualizer
   return <VisualizerComponent />;
 }

@@ -14,6 +14,7 @@ Follow these four steps in order. All paths are relative to the project root.
 
 3. Add to the SCENE_MAP in VisualizerManager `components/visualizer/VisualizerManager.tsx`
 
+- import scenename from "./scenename";
 - const SCENE_MAP: Record<string, React.ComponentType> = {
   particles: SongSingularity,
   waveform: WaveForm,

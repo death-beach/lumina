@@ -59,7 +59,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
     const texture = new THREE.CanvasTexture(canvas);
 
     const mat = new THREE.PointsMaterial({
-      size: 0.057,
+      size: 0.18,
       map: texture,
       color: 0xffffff,
       transparent: true,
@@ -83,15 +83,19 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
     const posAttr = points.geometry.attributes.position as THREE.BufferAttribute;
     const positions = posAttr.array as Float32Array;
     const velocities = velocitiesRef.current;
+    
+    // Safety check: ensure velocities array is properly initialized
+    if (!velocities || velocities.length === 0) return;
 
     const time = state.clock.getElapsedTime();
-    const { bass, mids, highs } = getThreeBands(audioData);
+    // Safely handle null audio data
+    const { bass, mids, highs } = audioData ? getThreeBands(audioData) : { bass: 0, mids: 0, highs: 0 };
 
     const audioActive = time > 4.5;
 
     const morphSpeed = 0.082 + (audioActive ? mids * 0.105 : 0);
     const noiseStrength = 0.00135 + (audioActive ? highs * 0.0021 : 0);
-    const globalScale = 1.0 + (audioActive ? bass * 0.42 : 0.08);
+    const globalScale = 1.0 + (audioActive ? bass * 0.22 : 0.03);
 
     const morphCycle = (time * morphSpeed) % 3.0;
     const form = Math.floor(morphCycle);
@@ -108,9 +112,12 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       const distSq = x * x + y * y + z * z;
       if (distSq > 0.01) {
         const dist = Math.sqrt(distSq);
-        velocities[i]     -= (x / dist) * attraction;
-        velocities[i + 1] -= (y / dist) * attraction;
-        velocities[i + 2] -= (z / dist) * attraction;
+        // Safeguard against division by very small distances
+        const minDist = 0.001;
+        const safeDist = Math.max(dist, minDist);
+        velocities[i]     -= (x / safeDist) * attraction;
+        velocities[i + 1] -= (y / safeDist) * attraction;
+        velocities[i + 2] -= (z / safeDist) * attraction;
       }
 
       const phase = i * 0.00078;
@@ -200,7 +207,7 @@ export default function SlowOrbit() {
       }}
     >
       <Canvas
-        camera={{ position: [0, 4.5, 22], fov: 55 }}
+        camera={{ position: [0, 4.5, 35], fov: 55 }}
         gl={{ antialias: true }}
       >
         <Scene audioData={audioData} />
