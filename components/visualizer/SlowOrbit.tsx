@@ -175,6 +175,20 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
     }
 
     posAttr.needsUpdate = true;
+
+    // Audio-reactive rotation
+    if (audioActive) {
+      // Bass controls Y rotation (spinning)
+      pointsRef.current.rotation.y += (bass * 0.65) * delta;
+      // Mids control X rotation (tilting)
+      pointsRef.current.rotation.x += (mids * 0.08) * delta;
+      // Highs add subtle Z rotation (twisting)
+      pointsRef.current.rotation.z += (highs * 0.35) * delta;
+    } else {
+      // Gentle idle rotation when no audio
+      pointsRef.current.rotation.y += 0.02 * delta;
+      pointsRef.current.rotation.x += 0.01 * delta;
+    }
   });
 
   return (
