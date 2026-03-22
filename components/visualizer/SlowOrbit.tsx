@@ -1,32 +1,60 @@
 "use no memo";
 "use client";
 
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useLayoutEffect } from "react";
 import { getThreeBands } from "@/lib/audioAnalysis";
 import { useAudioData } from "@/hooks/useAudioData";
 
 function Scene({ audioData }: { audioData: Uint8Array | null }) {
   const pointsRef = useRef<THREE.Points>(null!);
   const velocitiesRef = useRef<Float32Array>(null!);
-  const { pointer } = useThree();
+  const colorsRef = useRef<THREE.Color[]>([]);
 
   const NUM_PARTICLES = 12384;
 
-  const seededRandom = useMemo(() => {
-    return () => {
-      let seed = 12345;
+  const colorSystem = useMemo(() => {
+    const baseColor = new THREE.Color(0xffffff);
+
+    const colorKeyframes = [
+      { time: 0, color: new THREE.Color("#4a00e0") },
+      { time: 25, color: new THREE.Color("#f093fb") },
+      { time: 50, color: new THREE.Color("#00f260") },
+      { time: 80, color: new THREE.Color("#1e3c72") },
+      { time: 110, color: new THREE.Color("#8e2de2") },
+    ];
+
+    const bassColors = [
+      new THREE.Color("#4a00e0"),
+      new THREE.Color("#1e3c72"),
+      new THREE.Color("#8e2de2"),
+      new THREE.Color("#2c3e50"),
+    ];
+
+    const highColors = [
+      new THREE.Color("#f093fb"),
+      new THREE.Color("#00f260"),
+      new THREE.Color("#0575e6"),
+      new THREE.Color("#ffeb3b"),
+      new THREE.Color("#00bcd4"),
+    ];
+
+    return { baseColor, colorKeyframes, bassColors, highColors };
+  }, []);
+
+  const { geometry, material, velocities } = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array(NUM_PARTICLES * 3);
+    const colors = new Float32Array(NUM_PARTICLES * 3);
+    const velArray = new Float32Array(NUM_PARTICLES * 3);
+
+    let seed = 12345;
+    const seededRandom = () => {
       seed = (seed * 9301 + 49297) % 233280;
       return seed / 233280;
     };
-  }, []);
-
-  const { geometry, material, velocities: initialVelocities } = useMemo(() => {
-    const geo = new THREE.BufferGeometry();
-    const positions = new Float32Array(NUM_PARTICLES * 3);
-    const velocities = new Float32Array(NUM_PARTICLES * 3);
 
     const spread = 8.5;
     for (let i = 0; i < NUM_PARTICLES * 3; i += 3) {
@@ -34,16 +62,21 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       const theta = seededRandom() * Math.PI * 2;
       const phi = Math.acos(2 * seededRandom() - 1);
 
-      positions[i]     = r * Math.sin(phi) * Math.cos(theta);
+      positions[i] = r * Math.sin(phi) * Math.cos(theta);
       positions[i + 1] = r * Math.sin(phi) * Math.sin(theta);
       positions[i + 2] = r * Math.cos(phi);
 
-      velocities[i]     = (seededRandom() - 0.5) * 0.015;
-      velocities[i + 1] = (seededRandom() - 0.5) * 0.015;
-      velocities[i + 2] = (seededRandom() - 0.5) * 0.015;
+      colors[i] = 1;
+      colors[i + 1] = 1;
+      colors[i + 2] = 1;
+
+      velArray[i] = (seededRandom() - 0.5) * 0.015;
+      velArray[i + 1] = (seededRandom() - 0.5) * 0.015;
+      velArray[i + 2] = (seededRandom() - 0.5) * 0.015;
     }
 
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
     const canvas = document.createElement("canvas");
     canvas.width = 64;
@@ -62,6 +95,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       size: 0.18,
       map: texture,
       color: 0xffffff,
+      vertexColors: true,
       transparent: true,
       opacity: 0.94,
       blending: THREE.AdditiveBlending,
@@ -69,12 +103,70 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       sizeAttenuation: true,
     });
 
-    return { geometry: geo, material: mat, velocities };
-  }, [seededRandom]);
+    return { geometry: geo, material: mat, velocities: velArray };
+  }, []);
 
-  useEffect(() => {
-    velocitiesRef.current = initialVelocities;
-  }, [initialVelocities]);
+  useLayoutEffect(() => {
+    colorsRef.current = new Array(NUM_PARTICLES)
+      .fill(null)
+      .map(() => new THREE.Color(0xffffff));
+    velocitiesRef.current = velocities;
+  }, [velocities]);
+
+  function updateColors(time: number, bass: number, highs: number, positions: Float32Array) {
+    if (!colorsRef.current || colorsRef.current.length === 0) return;
+
+    const { baseColor, colorKeyframes, bassColors, highColors } = colorSystem;
+
+    const timeColor = baseColor.clone();
+    let timeIntensity = 0.45;
+
+    const first = colorKeyframes[0];
+    const last = colorKeyframes[colorKeyframes.length - 1];
+
+    if (time < first.time) {
+      const progress = time / first.time;
+      timeColor.lerpColors(baseColor, first.color, progress);
+    } else if (time > last.time) {
+      timeColor.copy(last.color);
+    } else {
+      for (let i = 0; i < colorKeyframes.length - 1; i++) {
+        const current = colorKeyframes[i];
+        const next = colorKeyframes[i + 1];
+        if (time >= current.time && time <= next.time) {
+          const progress = (time - current.time) / (next.time - current.time);
+          timeColor.lerpColors(current.color, next.color, progress);
+          timeIntensity = Math.sin((time - current.time) * 0.6) * 0.5 + 0.5;
+          break;
+        }
+      }
+    }
+
+    const bassIntensity = Math.pow(bass, 0.75) * 1.15;
+    const highIntensity = Math.pow(highs, 0.75) * 1.0;
+
+    const bassIndex = Math.min(Math.floor(bass * bassColors.length), bassColors.length - 1);
+    const highIndex = Math.min(Math.floor(highs * highColors.length), highColors.length - 1);
+
+    const bassColor = bassColors[bassIndex];
+    const highColor = highColors[highIndex];
+
+    for (let i = 0; i < NUM_PARTICLES; i++) {
+      const particleColor = colorsRef.current[i];
+      const px = positions[i * 3];
+      const py = positions[i * 3 + 1];
+      const pz = positions[i * 3 + 2];
+      const distance = Math.sqrt(px * px + py * py + pz * pz);
+      const distanceFactor = Math.max(0, 1 - distance / 20);
+
+      const finalColor = baseColor.clone().lerp(timeColor, timeIntensity * 0.65);
+
+      if (bassIntensity > 0.08) finalColor.lerp(bassColor, bassIntensity * distanceFactor * 0.78);
+      if (highIntensity > 0.08) finalColor.lerp(highColor, highIntensity * (1 - distanceFactor) * 0.72);
+
+      particleColor.lerp(finalColor, 0.25);
+    }
+  }
 
   useFrame((state, delta) => {
     const points = pointsRef.current;
@@ -83,15 +175,15 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
     const posAttr = points.geometry.attributes.position as THREE.BufferAttribute;
     const positions = posAttr.array as Float32Array;
     const velocities = velocitiesRef.current;
-    
-    // Safety check: ensure velocities array is properly initialized
+
     if (!velocities || velocities.length === 0) return;
+    if (!colorsRef.current || colorsRef.current.length === 0) return;
 
     const time = state.clock.getElapsedTime();
-    // Safely handle null audio data
     const { bass, mids, highs } = audioData ? getThreeBands(audioData) : { bass: 0, mids: 0, highs: 0 };
+    const audioActive = time > 3;
 
-    const audioActive = time > 4.5;
+    updateColors(time, bass, highs, positions);
 
     const morphSpeed = 0.082 + (audioActive ? mids * 0.105 : 0);
     const noiseStrength = 0.00135 + (audioActive ? highs * 0.0021 : 0);
@@ -112,10 +204,8 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       const distSq = x * x + y * y + z * z;
       if (distSq > 0.01) {
         const dist = Math.sqrt(distSq);
-        // Safeguard against division by very small distances
-        const minDist = 0.001;
-        const safeDist = Math.max(dist, minDist);
-        velocities[i]     -= (x / safeDist) * attraction;
+        const safeDist = Math.max(dist, 0.001);
+        velocities[i] -= (x / safeDist) * attraction;
         velocities[i + 1] -= (y / safeDist) * attraction;
         velocities[i + 2] -= (z / safeDist) * attraction;
       }
@@ -125,15 +215,15 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       const ny = Math.sin(time * 1.41 + phase * 1.22);
       const nz = Math.cos(time * 0.83 + phase * 0.95);
 
-      velocities[i]     += nx * noiseStrength;
+      velocities[i] += nx * noiseStrength;
       velocities[i + 1] += ny * noiseStrength;
       velocities[i + 2] += nz * noiseStrength * 0.75;
 
-      velocities[i]     *= damping;
+      velocities[i] *= damping;
       velocities[i + 1] *= damping;
       velocities[i + 2] *= damping;
 
-      positions[i]     += velocities[i] * 49 * delta;
+      positions[i] += velocities[i] * 49 * delta;
       positions[i + 1] += velocities[i + 1] * 49 * delta;
       positions[i + 2] += velocities[i + 2] * 49 * delta;
 
@@ -161,7 +251,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
         tz = z * 0.28 + Math.sin(angle * 5.2 + time) * 2.15;
       }
 
-      positions[i]     = THREE.MathUtils.lerp(positions[i], tx * globalScale, morphLerp);
+      positions[i] = THREE.MathUtils.lerp(positions[i], tx * globalScale, morphLerp);
       positions[i + 1] = THREE.MathUtils.lerp(positions[i + 1], ty * globalScale, morphLerp);
       positions[i + 2] = THREE.MathUtils.lerp(positions[i + 2], tz * globalScale, morphLerp);
 
@@ -176,18 +266,25 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
 
     posAttr.needsUpdate = true;
 
-    // Audio-reactive rotation
+    const colorAttr = points.geometry.attributes.color as THREE.BufferAttribute;
+    if (colorAttr) {
+      const colorArray = colorAttr.array as Float32Array;
+      for (let i = 0; i < NUM_PARTICLES; i++) {
+        const c = colorsRef.current[i];
+        colorArray[i * 3] = c.r;
+        colorArray[i * 3 + 1] = c.g;
+        colorArray[i * 3 + 2] = c.b;
+      }
+      colorAttr.needsUpdate = true;
+    }
+
     if (audioActive) {
-      // Bass controls Y rotation (spinning)
-      pointsRef.current.rotation.y += (bass * 0.65) * delta;
-      // Mids control X rotation (tilting)
-      pointsRef.current.rotation.x += (mids * 0.08) * delta;
-      // Highs add subtle Z rotation (twisting)
-      pointsRef.current.rotation.z += (highs * 0.35) * delta;
+      points.rotation.y += bass * 0.65 * delta;
+      points.rotation.x += mids * 0.08 * delta;
+      points.rotation.z += highs * 0.35 * delta;
     } else {
-      // Gentle idle rotation when no audio
-      pointsRef.current.rotation.y += 0.02 * delta;
-      pointsRef.current.rotation.x += 0.01 * delta;
+      points.rotation.y += 0.02 * delta;
+      points.rotation.x += 0.01 * delta;
     }
   });
 
@@ -220,10 +317,7 @@ export default function SlowOrbit() {
         overflow: "hidden",
       }}
     >
-      <Canvas
-        camera={{ position: [0, 4.5, 35], fov: 55 }}
-        gl={{ antialias: true }}
-      >
+      <Canvas camera={{ position: [0, 4.5, 35], fov: 55 }} gl={{ antialias: true }}>
         <Scene audioData={audioData} />
       </Canvas>
     </div>

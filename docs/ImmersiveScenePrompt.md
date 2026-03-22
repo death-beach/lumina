@@ -34,6 +34,12 @@ CONTEXT & REQUIREMENTS:
    - Mids controls: Camera tilt, element complexity, color intensity
    - Highs controls: Particle velocity, detail level, spark effects
 
+4. **COLOR SYSTEM (Optional):**
+   - Time-based color transitions at specific intervals (e.g., 30s, 45s, 60s)
+   - Audio-reactive coloring: [User defines color mapping for frequency bands]
+   - Distance-based color variation (center vs outer particles)
+   - Smooth color interpolation with no hard cuts
+
    **IMPORTANT:** Each frequency band should control DIFFERENT aspects of the scene to avoid conflicts.
 
 IMMERSIVE SCENE REQUIREMENTS:
@@ -73,7 +79,11 @@ PERFORMANCE REQUIREMENTS:
 - No console.log in production code
 - Use useMemo for static data, useRef for mutable state
 - **Mouse Interaction**: Add mouse/touch responsiveness using `useThree()` hook to access `state.pointer` for interactive scenes
-- **Particle Limit**: Maximum ~12,000 particles (same as SlowOrbit.tsx)
+- **Particle Limit**: Can support higher particle counts (tested up to 12,000+ particles)
+- **Color System**: Use vertex colors with proper color attribute initialization in useMemo
+- **Mouse Interaction**: Add mouse/touch responsiveness using `useThree()` hook to access `state.pointer` for interactive scenes
+- **Particle Limit**: Can support higher particle counts (tested up to 12,000+ particles)
+- **Color System**: Optional vertex colors with time-based and audio-reactive coloring
 
 REACT HOOKS BEST PRACTICES (CRITICAL):
 
@@ -211,16 +221,18 @@ WHAT TO DO:
 - Use OrbitControls for interactive camera movement
 - Design single, compelling visual elements
 - Implement user-defined audio mappings
-- Optimize for smooth performance (max ~12k particles)
+- Optimize for smooth performance (can support 12k+ particles)
 - Handle mobile devices gracefully
 - Use seeded random for consistent results
 - Follow React Three Fiber best practices
 - Create professional, polished visuals
+- Implement color systems with vertex colors and proper initialization
+- Use time-based color transitions and audio-reactive coloring
 
 WHAT NOT TO DO:
 
 - Don't create multiple complex visual elements
-- Don't exceed ~12,000 particles
+- Don't exceed reasonable particle counts for target devices
 - Don't use Math.random() - always use seeded random
 - Don't modify hook returns directly
 - Don't create state in visualizer components
@@ -229,6 +241,8 @@ WHAT NOT TO DO:
 - Don't make audio mappings conflict (same band controlling multiple things)
 - Don't forget to include OrbitControls
 - Don't create static scenes without camera interaction
+- Don't initialize color refs in useEffect (use useMemo to avoid race conditions)
+- Don't forget to initialize color attributes in geometry setup
 
 STRICT OUTPUT FORMAT:
 Return ONLY the complete React component code.

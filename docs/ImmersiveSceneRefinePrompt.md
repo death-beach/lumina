@@ -28,6 +28,8 @@ Use this prompt when you need to improve an existing immersive visualizer scene.
 - **Audio-Driven Camera**: Camera movement controlled by audio
 - **User-Defined Mappings**: Respect existing audio frequency band mappings
 - **Mobile Optimization**: Reduce complexity on mobile devices
+- **Color System**: Optional vertex colors with time-based and audio-reactive coloring
+- **High Particle Counts**: Can support 12,000+ particles with proper optimization
 
 ### React Three Fiber
 
@@ -91,6 +93,10 @@ Examples:
 - Add smoother transitions between audio states
 - Implement more complex audio-driven camera movements
 - Enhance element responsiveness to user-defined mappings
+- Optimize color systems for better performance
+- Improve color reaction speed and smoothness
+- Add time-based color transitions
+- Implement distance-based color variation
 
 ### Visual Polish
 
@@ -99,6 +105,9 @@ Examples:
 - Add post-processing effects
 - Enhance color palettes and gradients
 - Add depth cues and atmospheric effects
+- Implement vertex color systems with proper initialization
+- Add time-based color keyframes and transitions
+- Create audio-reactive color mapping systems
 
 ### Performance Optimization
 
@@ -107,6 +116,9 @@ Examples:
 - Use instancing for repeated objects
 - Implement level-of-detail (LOD) systems
 - Optimize particle systems for mobile
+- Optimize color calculations and buffer updates
+- Use efficient color interpolation methods
+- Implement proper color attribute management
 
 ### Camera & Interaction
 
@@ -115,6 +127,8 @@ Examples:
 - Enhance mouse/touch interaction
 - Add smooth camera transitions
 - Implement better collision detection for camera
+- Add color-based camera effects
+- Implement audio-reactive color transitions
 
 ### Mobile Optimization
 
@@ -123,6 +137,8 @@ Examples:
 - Optimize texture usage
 - Implement adaptive quality settings
 - Reduce draw calls
+- Optimize color buffer updates for mobile
+- Use efficient color palette management
 
 ## Output Format
 
@@ -140,7 +156,7 @@ Ensure the final code maintains compatibility with Lumina's architecture and fol
 
 - [ ] Maintains React Compiler compatibility
 - [ ] Uses seeded random instead of Math.random()
-- [ ] Respects particle count limits (~12k max)
+- [ ] Respects particle count limits (can support 12k+)
 - [ ] Includes OrbitControls for interaction
 - [ ] Maintains user-defined audio mappings
 - [ ] Optimized for mobile performance
@@ -148,3 +164,7 @@ Ensure the final code maintains compatibility with Lumina's architecture and fol
 - [ ] Smooth 60fps animation
 - [ ] Proper TypeScript typing
 - [ ] No external dependencies or network requests
+- [ ] Color system with proper vertex color initialization
+- [ ] Time-based and audio-reactive color transitions
+- [ ] Efficient color buffer management
+- [ ] Race condition prevention in color systems
