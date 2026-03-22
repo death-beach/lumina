@@ -10,8 +10,6 @@ import SlowOrbit from "./SlowOrbit";
 
 const SCENE_MAP: Record<string, React.ComponentType> = {
   particles: SongSingularity,
-  waveform: SongSingularity,
-  nebula: SongSingularity,
   tesseract: BreathingTesseract,
   pillar: Pillar,
 
@@ -40,7 +38,7 @@ export function VisualizerManager() {
   const sceneType = visual?.type === "reactive" ? visual.scene : "particles";
 
   const VisualizerComponent = SCENE_MAP[sceneType || "particles"] || SongSingularity;
-  
+
   // Show the reactive visualizer
   return <VisualizerComponent />;
 }

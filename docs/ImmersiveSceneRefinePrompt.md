@@ -1,8 +1,8 @@
-# Scene Refinement Prompt
+# Immersive Scene Refinement Prompt
 
-Use this prompt when you need to improve an existing visualizer scene. This prompt provides context about Lumina's technical constraints and coding standards to ensure the refined scene maintains compatibility and performance.
+Use this prompt when you need to improve an existing immersive visualizer scene. This prompt provides context about Lumina's technical constraints and coding standards to ensure the refined scene maintains compatibility and performance.
 
-**YOU WILL paste the existing code below AND put in what you want to refine. SEE NOTES below in ### Current Scene Code, ### Description of Desired Improvements, and ### Specific Requirements**
+**YOU WILL paste the existing code below AND put in what you want to refine. SEE NOTES below in ### Current Scene Code and ### Specific Requirements**
 
 ## Technical Context
 
@@ -13,12 +13,21 @@ Use this prompt when you need to improve an existing visualizer scene. This prom
 - **No State in Visualizers**: Visualizers should not use React state - use props and refs only
 - **Performance**: Keep render loops lightweight, avoid expensive calculations in `useFrame`
 - **TypeScript**: All code must be properly typed
+- **Particle Limit**: Maximum ~12,000 particles for smooth performance
 
 ### Audio Analysis
 
 - Use `getThreeBands(audioData)` for frequency analysis (bass, mids, highs)
 - Audio data is provided via `useAudioData()` hook
 - Frequency ranges: Bass (0-275Hz), Mids (320Hz-3.5kHz), Highs (3.5kHz-20kHz)
+
+### Immersive Scene Requirements
+
+- **OrbitControls**: Must include interactive camera controls
+- **Single Focus Element**: One main visual element for exploration
+- **Audio-Driven Camera**: Camera movement controlled by audio
+- **User-Defined Mappings**: Respect existing audio frequency band mappings
+- **Mobile Optimization**: Reduce complexity on mobile devices
 
 ### React Three Fiber
 
@@ -43,7 +52,7 @@ const seededRandom = () => {
 ### Current Scene Code
 
 ```
-[PASTE YOUR EXISTING VISUALIZER CODE HERE]
+[PASTE YOUR EXISTING IMMERSIVE VISUALIZER CODE HERE]
 ```
 
 ### Description of Desired Improvements
@@ -57,6 +66,8 @@ Examples:
 - "Add more dynamic color transitions"
 - "Make the scene more interactive with mouse movement"
 - "Add depth and layering to the visual elements"
+- "Improve camera responsiveness to audio"
+- "Add more immersive lighting effects"
 ```
 
 ### Specific Requirements
@@ -64,19 +75,22 @@ Examples:
 ```
 [LIST ANY SPECIFIC REQUIREMENTS OR CONSTRAINTS]
 Examples:
-- "Must maintain current color scheme"
+- "Must maintain current audio mappings"
 - "Performance must remain under 60fps on mobile"
+- "Keep particle count under 12,000"
+- "Must work with existing OrbitControls setup"
 - "Keep the scene within 1000 lines of code"
-- "Must work with existing audio analysis"
+- "Must maintain current color scheme"
 ```
 
-## Common Improvements
+## Common Improvements for Immersive Scenes
 
 ### Audio Reactivity
 
 - Increase sensitivity to specific frequency bands
 - Add smoother transitions between audio states
-- Implement more complex audio-driven animations
+- Implement more complex audio-driven camera movements
+- Enhance element responsiveness to user-defined mappings
 
 ### Visual Polish
 
@@ -84,6 +98,7 @@ Examples:
 - Improve material quality and shaders
 - Add post-processing effects
 - Enhance color palettes and gradients
+- Add depth cues and atmospheric effects
 
 ### Performance Optimization
 
@@ -91,13 +106,23 @@ Examples:
 - Optimize render loops
 - Use instancing for repeated objects
 - Implement level-of-detail (LOD) systems
+- Optimize particle systems for mobile
 
-### Interactivity
+### Camera & Interaction
 
-- Add mouse/touch responsiveness
-- Implement keyboard controls
-- Add parameter controls for user customization
-- Create smooth transitions between states
+- Improve OrbitControls responsiveness
+- Add audio-reactive camera movements
+- Enhance mouse/touch interaction
+- Add smooth camera transitions
+- Implement better collision detection for camera
+
+### Mobile Optimization
+
+- Reduce particle counts on mobile
+- Simplify shaders for mobile GPUs
+- Optimize texture usage
+- Implement adaptive quality settings
+- Reduce draw calls
 
 ## Output Format
 
@@ -107,5 +132,19 @@ The refined scene should be provided as:
 2. Any new utility functions or hooks needed
 3. Performance notes if applicable
 4. Testing recommendations
+5. Updated audio mapping documentation if changed
 
 Ensure the final code maintains compatibility with Lumina's architecture and follows the technical constraints outlined above.
+
+## Quality Checklist
+
+- [ ] Maintains React Compiler compatibility
+- [ ] Uses seeded random instead of Math.random()
+- [ ] Respects particle count limits (~12k max)
+- [ ] Includes OrbitControls for interaction
+- [ ] Maintains user-defined audio mappings
+- [ ] Optimized for mobile performance
+- [ ] Professional visual quality
+- [ ] Smooth 60fps animation
+- [ ] Proper TypeScript typing
+- [ ] No external dependencies or network requests
