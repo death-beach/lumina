@@ -9,6 +9,7 @@ import Pillar from "./Pillar";
 import SlowOrbit from "./SlowOrbit";
 import Animal from "./Animal";
 import Flower from "./Flower"
+import Mandala from "./Mandala"
 
 
 const SCENE_MAP: Record<string, React.ComponentType> = {
@@ -20,6 +21,7 @@ const SCENE_MAP: Record<string, React.ComponentType> = {
   sloworbit: SlowOrbit,
   animal: Animal,
   flower: Flower,
+  mandala: Mandala,
 };
 
 export function VisualizerManager() {
