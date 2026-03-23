@@ -102,6 +102,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       uBass: { value: 0 },
       uMids: { value: 0 },
       uHighs: { value: 0 },
+      uBreath: { value: 1.0 }, // Added this
       uColor1: { value: new THREE.Color("#00ffcc") },
       uColor2: { value: new THREE.Color("#0066ff") },
       uColor3: { value: new THREE.Color("#aa00ff") },
@@ -117,6 +118,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       uniform float uTime;
       uniform float uAudioActive;
       uniform float uBass;
+      uniform float uBreath; // Declare it here so the shader can see it
 
       void main() {
         vRandom = aRandom;
@@ -126,13 +128,12 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
         vec3 pos = mix(position, aGerm, morph1);
         pos = mix(pos, aFlower, morph2);
 
-        // Explorable Depth Logic after 25s
         if (uTime > 25.0) {
+          // uBreath will slowly force this to 0 (flat) every few seconds
           float wave = sin(length(pos.xy) * 0.8 - uTime) * 1.5;
-          pos.z += wave * uAudioActive * (1.0 + uBass);
+          pos.z += wave * uAudioActive * (1.0 + uBass) * uBreath;
         }
 
-        // Bass Glitch - Fracturing 
         if (uAudioActive > 0.0 && uBass > 0.45) {
            float trigger = step(0.96, fract(aRandom * 100.0 + uTime * 2.0));
            pos += (vec3(fract(aRandom * 7.0), fract(aRandom * 13.0), fract(aRandom * 19.0)) - 0.5) * trigger * uBass * 12.0;
@@ -155,16 +156,13 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
 
       void main() {
         if (length(gl_PointCoord - vec2(0.5)) > 0.5) discard;
-
         float dist = length(vPos.xy) * 0.15;
         float swirl = fract(dist - uTime * 0.15 + (uMids * uAudioActive * 2.0));
-        
         vec3 col = mix(uColor1, uColor2, smoothstep(0.0, 0.2, swirl));
         col = mix(col, uColor3, smoothstep(0.2, 0.4, swirl));
         col = mix(col, uColor4, smoothstep(0.4, 0.6, swirl));
         col = mix(col, uColor5, smoothstep(0.6, 0.8, swirl));
         col = mix(col, uColor1, smoothstep(0.8, 1.0, swirl));
-
         col += uHighs * uAudioActive * 0.8;
         gl_FragColor = vec4(col, 0.9);
       }
@@ -183,38 +181,37 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
     currentHighs.current = THREE.MathUtils.lerp(currentHighs.current, highs, delta * 10);
 
     const audioActive = THREE.MathUtils.smoothstep(time, 15.5, 16.5);
+    
+    // Create the "Breath" (0 = flat, 1 = deep)
+    const breath = Math.abs(Math.sin(time * 0.15)) * 0.9 + 0.1;
 
     if (materialRef.current) {
-      // eslint-disable-next-line react-hooks/immutability
       materialRef.current.uniforms.uTime.value = time;
-      // eslint-disable-next-line react-hooks/immutability
       materialRef.current.uniforms.uAudioActive.value = audioActive;
-      // eslint-disable-next-line react-hooks/immutability
       materialRef.current.uniforms.uBass.value = currentBass.current;
-      // eslint-disable-next-line react-hooks/immutability
       materialRef.current.uniforms.uMids.value = currentMids.current;
-      // eslint-disable-next-line react-hooks/immutability
       materialRef.current.uniforms.uHighs.value = currentHighs.current;
+      materialRef.current.uniforms.uBreath.value = breath; 
     }
 
     if (groupRef.current) {
-    // Use a slow sine wave to shift focus between axes every ~10 seconds
-    const axisSwitch = Math.sin(time * 0.2); 
-    
-    // Highs drive the overall "spin energy"
-    audioRotAccumulator.current += currentHighs.current * audioActive * delta * .8;
+      const axisSwitch = Math.sin(time * 0.2); 
+      
+      // BRAKE: Bleed off 10% of the energy every frame so it can come to rest
+      audioRotAccumulator.current *= 0.90; 
+      
+      // ADDITION: Only add new energy from the highs
+      audioRotAccumulator.current += currentHighs.current * audioActive * delta * 1.5;
 
-    // Distribute the accumulated rotation across axes based on the slow oscillator
-    // When axisSwitch is near 1, it spins mostly on Y. Near -1, mostly on X.
-    groupRef.current.rotation.y = time * 0.08 + (audioRotAccumulator.current * Math.abs(axisSwitch));
-    groupRef.current.rotation.x = THREE.MathUtils.lerp(
-        groupRef.current.rotation.x, 
-        (pointer.y * 0.4) + (audioRotAccumulator.current * (.6 - Math.abs(axisSwitch))), 
-        0.05
-    );
-    
-    // Add a subtle Z-roll driven by the mids for extra fluid movement
-    groupRef.current.rotation.z += currentMids.current * audioActive * delta * 0.5;
+      // APPLY: Keep your original multi-axis logic
+      groupRef.current.rotation.y = time * 0.08 + (audioRotAccumulator.current * Math.abs(axisSwitch));
+      groupRef.current.rotation.x = THREE.MathUtils.lerp(
+          groupRef.current.rotation.x, 
+          (pointer.y * 0.4) + (audioRotAccumulator.current * (0.6 - Math.abs(axisSwitch))), 
+          0.05
+      );
+      
+      groupRef.current.rotation.z += currentMids.current * audioActive * delta * 0.5;
     }
   });
 
