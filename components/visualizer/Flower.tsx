@@ -195,23 +195,33 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
     }
 
     if (groupRef.current) {
-      const axisSwitch = Math.sin(time * 0.2); 
-      
-      // BRAKE: Bleed off 10% of the energy every frame so it can come to rest
-      audioRotAccumulator.current *= 0.90; 
-      
-      // ADDITION: Only add new energy from the highs
-      audioRotAccumulator.current += currentHighs.current * audioActive * delta * 1.5;
+    const axisSwitch = Math.sin(time * 0.2); 
+    
+    // 1. Friction stays to keep it snappy
+    audioRotAccumulator.current *= 0.90; 
+    audioRotAccumulator.current += currentHighs.current * audioActive * delta * 1.5;
 
-      // APPLY: Keep your original multi-axis logic
-      groupRef.current.rotation.y = time * 0.08 + (audioRotAccumulator.current * Math.abs(axisSwitch));
-      groupRef.current.rotation.x = THREE.MathUtils.lerp(
-          groupRef.current.rotation.x, 
-          (pointer.y * 0.4) + (audioRotAccumulator.current * (0.6 - Math.abs(axisSwitch))), 
-          0.05
-      );
-      
-      groupRef.current.rotation.z += currentMids.current * audioActive * delta * 0.5;
+    // 2. THE LIMITER: 
+    // Instead of adding time (which spins 360), we use sin(time) 
+    // to oscillate within a 33-45% range (approx 1.2 to 1.6 radians).
+    const baseTiltY = Math.sin(time * 0.2) * 0.4; // Oscillates left/right
+    const musicTiltY = audioRotAccumulator.current * axisSwitch;
+    
+    // Apply Y Rotation (Limited range)
+    groupRef.current.rotation.y = baseTiltY + musicTiltY;
+
+    // Apply X Rotation (Limited range + Pointer)
+    const baseTiltX = Math.cos(time * 0.15) * 0.4; // Oscillates up/down
+    const xTarget = (pointer.y * 0.4) + baseTiltX + (audioRotAccumulator.current * (0.6 - Math.abs(axisSwitch)));
+    
+    groupRef.current.rotation.x = THREE.MathUtils.lerp(
+        groupRef.current.rotation.x, 
+        xTarget, 
+        0.05
+    );
+    
+    // 3. Keep Z subtle so it doesn't flip the design over
+    groupRef.current.rotation.z = Math.sin(time * 0.1) * 0.2 + (currentMids.current * audioActive * 0.1);
     }
   });
 
@@ -234,7 +244,7 @@ export default function Flower() {
   const audioData = useAudioData();
   return (
     <div style={{ position: "absolute", inset: 0, background: "#000" }}>
-      <Canvas camera={{ position: [0, 0, 15], fov: 55 }}>
+      <Canvas camera={{ position: [0, 0, 12.5], fov: 55 }}>
         <Scene audioData={audioData} />
         <OrbitControls enablePan={false} />
       </Canvas>

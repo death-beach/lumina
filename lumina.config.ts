@@ -26,7 +26,7 @@ const config: LuminaConfig = {
       src: "/tracks/Drunk On The Mic.mp3",
       visual: {
         type: "reactive",
-        scene: "flower",
+        scene: "sloworbit",
       },
     },
     {
@@ -35,7 +35,7 @@ const config: LuminaConfig = {
       src: "/tracks/LAST CALL PROD. BY DEATH BEACH.mp3",
       visual: {
         type: "reactive",
-        scene: "sloworbit",
+        scene: "flower",
       },
     }
   ],
