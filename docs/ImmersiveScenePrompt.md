@@ -24,12 +24,11 @@ CONTEXT & REQUIREMENTS:
 2. **IMMERSIVE IDEA:**
    [YOUR CREATIVE IDEA HERE]
 
-3. **AUDIO MAPPING (User-Defined):**
-   - Bass (0-275Hz) controls: [User specifies what bass controls]
-   - Mids (320Hz-3.5kHz) controls: [User specifies what mids controls]
-   - Highs (3.5kHz-20kHz) controls: [User specifies what highs controls]
-
-   **Examples:**
+3. **AUDIO MAPPING (updated & stronger):**
+   - Highs (3.5kHz-20kHz) controls: intensifies the ripples **AND** drives particle expansion/breathing (add uniform `uExpansion` and scale `pos *= (1.0 + uExpansion)` in vertex shader)
+   - Each frequency band must control **completely different** visual aspects (no overlap)
+   - Expansion must feel like a musical "breath" — subtle on low highs, strong on peaks
+     **Examples:**
    - Bass controls: Camera rotation speed, element scale, particle density
    - Mids controls: Camera tilt, element complexity, color intensity
    - Highs controls: Particle velocity, detail level, spark effects
@@ -70,6 +69,12 @@ BAD EXAMPLES:
 - Multiple elements responding to the same frequency band
 - Cross-contamination of audio bands
 
+**Camera Requirements:**
+
+- Start camera slightly zoomed in (initial position z ≈ 7.2–7.8)
+- Smooth lerp on all camera movement
+- OrbitControls must respect the starting zoom
+
 PERFORMANCE REQUIREMENTS:
 
 - Use @react-three/drei Line for wireframes (not raw Three.js Line)
@@ -84,6 +89,12 @@ PERFORMANCE REQUIREMENTS:
 - **Mouse Interaction**: Add mouse/touch responsiveness using `useThree()` hook to access `state.pointer` for interactive scenes
 - **Particle Limit**: Can support higher particle counts (tested up to 12,000+ particles)
 - **Color System**: Optional vertex colors with time-based and audio-reactive coloring
+
+**Performance + Polish (strengthened):**
+
+- Particle count locked at 12,000 max
+- Mist/light slits cycle starts at 30 seconds (user-adjustable)
+- Every scene must feel "alive" even with no audio (slow base rotation + rest ripples)
 
 REACT HOOKS BEST PRACTICES (CRITICAL):
 
@@ -117,6 +128,13 @@ COMMON ERROR PREVENTION:
 - Camera control: Use useFrame with proper patterns, don't modify hook returns
 - State updates: Use useState/useRef appropriately, avoid direct mutations
 - Component purity: Ensure render functions have no side effects
+
+**Shader & Uniform Rules (anti-error section):**
+
+- Always use `useMemo` for uniforms (never `.current` in render)
+- Add `// eslint-disable-next-line react-hooks/immutability` only on intentional mutations inside `useFrame`/`spawnRipple`
+- Never declare `attribute vec3 color` manually when `vertexColors={true}` is used
+- All uniforms must be mutated **only** after `useFrame` starts
 
 VISUAL QUALITY REQUIREMENTS:
 
@@ -264,34 +282,4 @@ Reminder on how to use the task_progress parameter:
 3. Modify the list as needed: - Add any new steps you've discovered - Reorder if the sequence has changed
 4. Ensure the list accurately reflects the current state
 
-**Remember:** Keeping the task_progress list updated helps track progress and ensures nothing is missed. <environment_details>
-
-# Visual Studio Code Visible Files
-
-lumina.config.ts
-
-# Visual Studio Code Open Tabs
-
-scripts/reset-test.mjs
-docs/Use_New_Visualizer_Inst.md
-components/visualizer/VisualizerManager.tsx
-hooks/useAudioData.ts
-hooks/useAudio.ts
-components/visualizer/SlowOrbit.tsx
-docs/scenetepompt.md.backup
-docs/ScenePrompt.md
-lumina.config.ts
-lib/config.ts
-
-# Current Time
-
-3/22/2026, 11:12:34 AM (America/Los_Angeles, UTC-7:00)
-
-# Context Window Usage
-
-30,469 / 256K tokens used (12%)
-
-# Current Mode
-
-ACT MODE
-</environment_details>
+**Remember:** Keeping the task_progress list updated helps track progress and ensures nothing is missed.

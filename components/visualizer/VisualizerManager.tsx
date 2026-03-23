@@ -7,6 +7,7 @@ import Pillar from "./Pillar";
 
 // Raw heavy particle scenes (these use pure Three.js)
 import SlowOrbit from "./SlowOrbit";
+import Animal from "./Animal";
 
 const SCENE_MAP: Record<string, React.ComponentType> = {
   particles: SongSingularity,
@@ -15,6 +16,7 @@ const SCENE_MAP: Record<string, React.ComponentType> = {
 
   // Raw heavy scenes (bypass mode)
   sloworbit: SlowOrbit,
+  animal: Animal,
 };
 
 export function VisualizerManager() {

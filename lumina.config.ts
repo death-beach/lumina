@@ -26,7 +26,7 @@ const config: LuminaConfig = {
       src: "/tracks/Drunk On The Mic.mp3",
       visual: {
         type: "reactive",
-        scene: "particles",
+        scene: "animal",
       },
     },
     {
