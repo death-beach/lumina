@@ -7,7 +7,7 @@ import { getThreeBands } from "@/lib/audioAnalysis";
 import { useAudioData } from "@/hooks/useAudioData";
 import { useMemo, useRef } from "react";
 
-const POINT_COUNT = 18500;  // ← boosted for richer detail
+const POINT_COUNT = 20500;
 const MAX_RIPPLES = 5;
 
 const vertexShader = `
@@ -42,11 +42,9 @@ void main() {
     }
   }
 
-  // Organic skin wrinkles (makes it feel alive instead of balloon-smooth)
   float wrinkle = sin(pos.x * 13.0) * sin(pos.y * 17.0) * sin(pos.z * 11.0) * 0.011;
   pos += wrinkle;
 
-  // Highs-driven expansion (the elephant breathes!)
   pos *= (1.0 + uExpansion);
 
   vColor = finalColor;
@@ -123,7 +121,7 @@ function useElephantGeometry() {
       valid++;
     };
 
-    // Main body - large rounded
+    // Body
     for (let i = 0; i < 5800; i++) {
       let x, y, z;
       do {
@@ -146,28 +144,48 @@ function useElephantGeometry() {
       addPoint(x, y, z, 0.53, 0.56, 0.61);
     }
 
-    // Ears (big + floppy - both sides now!)
-    const earPoints = 1050;
-    // Right ear (+z)
-    for (let i = 0; i < earPoints; i++) {
-      const x = seededRandom() * 2.1 + 3.1;
-      const y = seededRandom() * 2.9 + 1.65;
-      const z = seededRandom() * 2.3 + 2.55;
-      if (Math.pow((x - 3.4) / 1.55, 2) + Math.pow((y - 1.9) / 1.85, 2) + Math.pow((z - 2.8) / 0.85, 2) < 1.0) {
-        addPoint(x, y, z, 0.47, 0.49, 0.54);
-      }
-    }
-    // Left ear (-z)
-    for (let i = 0; i < earPoints; i++) {
-      const x = seededRandom() * 2.1 + 3.1;
-      const y = seededRandom() * 2.9 + 1.65;
-      const z = -(seededRandom() * 2.3 + 2.55);
-      if (Math.pow((x - 3.4) / 1.55, 2) + Math.pow((y - 1.9) / 1.85, 2) + Math.pow((z + 2.8) / 0.85, 2) < 1.0) {
-        addPoint(x, y, z, 0.47, 0.49, 0.54);
+    // Eyes
+    const eyeCenters = [
+      {x: 5.35, y: 1.85, z: 1.18},
+      {x: 5.35, y: 1.85, z: -1.18}
+    ];
+    for (const center of eyeCenters) {
+      for (let i = 0; i < 95; i++) {
+        const rx = (seededRandom() - 0.5) * 0.48;
+        const ry = (seededRandom() - 0.5) * 0.72;
+        const rz = (seededRandom() - 0.5) * 0.32;
+        if (rx*rx*3.2 + ry*ry*1.1 + rz*rz < 0.22) {
+          addPoint(center.x + rx, center.y + ry, center.z + rz, 0.07, 0.04, 0.03);
+        }
       }
     }
 
-    // 4 Legs (proper left/right pairs)
+    // Ears
+    const earPoints = 1550;
+    // Right ear
+    for (let i = 0; i < earPoints; i++) {
+      const x = seededRandom() * 2.4 + 3.0;
+      const y = seededRandom() * 3.4 + 1.4;
+      const z = seededRandom() * 3.1 + 2.85;
+      const earShape = Math.pow((x - 3.7) / 1.75, 2) + Math.pow((y - 2.1) / 2.1, 2) + Math.pow((z - 3.1) / 1.05, 2);
+      if (earShape < 1.0) {
+        const brightness = 0.46 + (y - 1.0) * 0.025;
+        addPoint(x, y, z, brightness * 0.94, brightness * 0.98, brightness * 1.05);
+      }
+    }
+    // Left ear
+    for (let i = 0; i < earPoints; i++) {
+      const x = seededRandom() * 2.4 + 3.0;
+      const y = seededRandom() * 3.4 + 1.4;
+      const z = -(seededRandom() * 3.1 + 2.85);
+      const earShape = Math.pow((x - 3.7) / 1.75, 2) + Math.pow((y - 2.1) / 2.1, 2) + Math.pow((z + 3.1) / 1.05, 2);
+      if (earShape < 1.0) {
+        const brightness = 0.46 + (y - 1.0) * 0.025;
+        addPoint(x, y, z, brightness * 0.94, brightness * 0.98, brightness * 1.05);
+      }
+    }
+
+    // Legs
     const legBases = [
       {x: 2.1, z: 1.75}, {x: 2.1, z: -1.75},
       {x: -2.55, z: 1.8}, {x: -2.55, z: -1.8}
@@ -185,14 +203,13 @@ function useElephantGeometry() {
       }
     }
 
-    // TRUNK - parametric curved trunk (the star of the show now)
+    // Trunk
     for (let s = 0; s < 42; s++) {
       const t = s / 41;
       const curveX = Math.sin(t * 2.7) * 1.45;
       const x = 4.75 + t * 1.1 + curveX;
       const y = 0.85 - t * 5.35 + Math.pow(t * 1.3, 2) * 0.8;
       const z = Math.sin(t * 4.0) * 0.45;
-
       const radius = 0.52 * (1.0 - t * 0.72) * (1 + Math.sin(t * 14) * 0.07);
 
       for (let p = 0; p < 42; p++) {
@@ -207,39 +224,41 @@ function useElephantGeometry() {
       }
     }
 
-    // Tusks (ivory - real elephant detail!)
+    // Tusks (lowered)
     const tuskStarts = [
-      {x: 4.35, y: 1.95, z: 1.05},
-      {x: 4.35, y: 1.95, z: -1.05}
+      {x: 4.65, y: 0.58, z: 1.05},
+      {x: 4.65, y: 0.58, z: -1.05}
     ];
     for (const start of tuskStarts) {
-      for (let i = 0; i < 340; i++) {
-        const t = i / 340;
-        const x = start.x + t * 2.65;
-        const y = start.y - t * 1.1 + Math.pow(t, 1.6) * 0.6;
-        const z = start.z * (1 - t * 0.35);
-        const r = 0.19 * (1 - t * 0.75);
-        for (let j = 0; j < 11; j++) {
-          const a = (j / 11) * Math.PI * 2 + seededRandom() * 0.5;
-          addPoint(x + Math.cos(a) * r, y, z + Math.sin(a) * r * 0.6, 0.92, 0.89, 0.82);
+      for (let i = 0; i < 360; i++) {
+        const t = i / 360;
+        const x = start.x + t * 2.85;
+        const y = start.y - t * 0.65 + Math.pow(t, 1.4) * 0.85;
+        const z = start.z * (1 - t * 0.28);
+        const r = 0.195 * (1 - t * 0.78);
+        for (let j = 0; j < 12; j++) {
+          const a = (j / 12) * Math.PI * 2 + seededRandom() * 0.4;
+          addPoint(x + Math.cos(a) * r, y, z + Math.sin(a) * r * 0.65, 0.93, 0.90, 0.83);
         }
       }
     }
 
-    // Small tail
-    for (let i = 0; i < 220; i++) {
-      const t = i / 220;
-      const x = -3.9 - t * 2.1;
-      const y = -0.65 + Math.sin(t * 9) * 0.25;
-      const z = Math.cos(t * 11) * 0.4;
-      const r = 0.13 * (1 - t * 0.5);
-      for (let j = 0; j < 8; j++) {
+    // Tail
+    for (let i = 0; i < 380; i++) {
+      const t = i / 380;
+      const x = -3.85 - t * 2.45;
+      const y = -0.55 + Math.sin(t * 7.5) * 0.38;
+      const z = Math.cos(t * 9.0) * 0.45;
+      const radius = 0.155 * (1.0 - t * 0.65);
+
+      for (let j = 0; j < 14; j++) {
         const a = seededRandom() * Math.PI * 2;
-        addPoint(x + Math.cos(a) * r, y, z + Math.sin(a) * r * 0.7, 0.39, 0.42, 0.47);
+        const rx = Math.cos(a) * radius;
+        const rz = Math.sin(a) * radius * 0.75;
+        addPoint(x + rx, y, z + rz, 0.38, 0.41, 0.46);
       }
     }
 
-    // Fill rest with offscreen points
     while (valid < POINT_COUNT) {
       positions[valid * 3] = 9999;
       positions[valid * 3 + 1] = 9999;
@@ -298,6 +317,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
     pointsUniforms.uBass.value = bass;
     // eslint-disable-next-line react-hooks/immutability
     pointsUniforms.uExpansion.value = highs * 0.35;
+    // eslint-disable-next-line react-hooks/immutability
     pointsUniforms.uTime.value = t;
     // eslint-disable-next-line react-hooks/immutability
     mistUniforms.uTime.value = t;
@@ -363,7 +383,7 @@ export default function Animal() {
   const audioData = useAudioData();
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 0, background: "#050508", overflow: "hidden" }}>
-      <Canvas camera={{ position: [0, 0, 7.5], fov: 60 }}>
+      <Canvas camera={{ position: [0, 0, 0.2], fov: 60 }}>
         <Scene audioData={audioData} />
         <OrbitControls enablePan={false} enableZoom={true} maxDistance={20} minDistance={3} />
       </Canvas>
