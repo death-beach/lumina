@@ -1,0 +1,246 @@
+"use no memo";
+"use client";
+
+import * as THREE from "three";
+import { useMemo, useRef } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
+import { getThreeBands } from "@/lib/audioAnalysis";
+import { useAudioData } from "@/hooks/useAudioData";
+
+const PARTICLE_COUNT = 12000;
+const RADIUS = 1.8; 
+
+function Scene({ audioData }: { audioData: Uint8Array | null }) {
+  const { pointer } = useThree();
+  const groupRef = useRef<THREE.Group>(null);
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
+
+  const currentHighs = useRef(0);
+  const currentMids = useRef(0);
+  const currentBass = useRef(0);
+  const audioRotAccumulator = useRef(0);
+
+  const { positions, aGerm, aFlower, aRandom } = useMemo(() => {
+    let seed = 888;
+    const rnd = () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
+
+    const pos = new Float32Array(PARTICLE_COUNT * 3);
+    const germ = new Float32Array(PARTICLE_COUNT * 3);
+    const flower = new Float32Array(PARTICLE_COUNT * 3);
+    const rand = new Float32Array(PARTICLE_COUNT);
+
+    /**
+     * Generates hexagonal grid centers for circle packing
+     * stage 0: 1 circle (Center)
+     * stage 1: 7 circles (Seed/Germ)
+     * stage 2: 19 circles (Flower)
+     */
+    const getCenters = (stages: number) => {
+      const centers: THREE.Vector3[] = [new THREE.Vector3(0, 0, 0)];
+      for (let s = 1; s <= stages; s++) {
+        for (let i = 0; i < 6; i++) {
+          const angle = (i * Math.PI) / 3;
+          const rootX = Math.cos(angle) * RADIUS * s;
+          const rootY = Math.sin(angle) * RADIUS * s;
+          centers.push(new THREE.Vector3(rootX, rootY, 0));
+          
+          if (s > 1) {
+            for (let j = 1; j < s; j++) {
+              const nextAngle = ((i + 1) * Math.PI) / 3;
+              const nextX = Math.cos(nextAngle) * RADIUS * s;
+              const nextY = Math.sin(nextAngle) * RADIUS * s;
+              centers.push(new THREE.Vector3(
+                rootX + (nextX - rootX) * (j / s),
+                rootY + (nextY - rootY) * (j / s),
+                0
+              ));
+            }
+          }
+        }
+      }
+      return centers;
+    };
+
+    const centersSeed = getCenters(1); 
+    const centersFlower = getCenters(2); 
+
+    for (let p = 0; p < PARTICLE_COUNT; p++) {
+      const rVal = rnd();
+      rand[p] = rVal;
+      const angle = rnd() * Math.PI * 2;
+
+      // Seed Logic: 7 Circles
+      const cS = centersSeed[Math.floor(rnd() * centersSeed.length)];
+      pos[p * 3] = cS.x + Math.cos(angle) * RADIUS;
+      pos[p * 3 + 1] = cS.y + Math.sin(angle) * RADIUS;
+      pos[p * 3 + 2] = (rnd() - 0.5) * 0.05;
+
+      // Germ Logic: Uses the same centers as Seed but visual density shifts
+      const cG = centersSeed[Math.floor(rnd() * centersSeed.length)];
+      germ[p * 3] = cG.x + Math.cos(angle) * RADIUS;
+      germ[p * 3 + 1] = cG.y + Math.sin(angle) * RADIUS;
+      germ[p * 3 + 2] = (rnd() - 0.5) * 0.1;
+
+      // Flower Logic: 19 Circles
+      const cF = centersFlower[Math.floor(rnd() * centersFlower.length)];
+      flower[p * 3] = cF.x + Math.cos(angle) * RADIUS;
+      flower[p * 3 + 1] = cF.y + Math.sin(angle) * RADIUS;
+      flower[p * 3 + 2] = (rnd() - 0.5) * 0.15;
+    }
+
+    return { positions: pos, aGerm: germ, aFlower: flower, aRandom: rand };
+  }, []);
+
+  const shaderArgs = useMemo(() => ({
+    uniforms: {
+      uTime: { value: 0 },
+      uAudioActive: { value: 0 },
+      uBass: { value: 0 },
+      uMids: { value: 0 },
+      uHighs: { value: 0 },
+      uColor1: { value: new THREE.Color("#00ffcc") },
+      uColor2: { value: new THREE.Color("#0066ff") },
+      uColor3: { value: new THREE.Color("#aa00ff") },
+      uColor4: { value: new THREE.Color("#ff0066") },
+      uColor5: { value: new THREE.Color("#ffcc00") },
+    },
+    vertexShader: `
+      attribute vec3 aGerm;
+      attribute vec3 aFlower;
+      attribute float aRandom;
+      varying vec3 vPos;
+      varying float vRandom;
+      uniform float uTime;
+      uniform float uAudioActive;
+      uniform float uBass;
+
+      void main() {
+        vRandom = aRandom;
+        float morph1 = smoothstep(5.0, 8.0, uTime);
+        float morph2 = smoothstep(11.0, 25.0, uTime);
+
+        vec3 pos = mix(position, aGerm, morph1);
+        pos = mix(pos, aFlower, morph2);
+
+        // Explorable Depth Logic after 25s
+        if (uTime > 25.0) {
+          float wave = sin(length(pos.xy) * 0.8 - uTime) * 1.5;
+          pos.z += wave * uAudioActive * (1.0 + uBass);
+        }
+
+        // Bass Glitch - Fracturing 
+        if (uAudioActive > 0.0 && uBass > 0.45) {
+           float trigger = step(0.96, fract(aRandom * 100.0 + uTime * 2.0));
+           pos += (vec3(fract(aRandom * 7.0), fract(aRandom * 13.0), fract(aRandom * 19.0)) - 0.5) * trigger * uBass * 12.0;
+        }
+
+        vPos = pos;
+        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+        gl_Position = projectionMatrix * mvPosition;
+        gl_PointSize = (12.0 / -mvPosition.z) * (1.1 + uBass * 1.5);
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vPos;
+      varying float vRandom;
+      uniform float uTime;
+      uniform float uAudioActive;
+      uniform float uMids;
+      uniform float uHighs;
+      uniform vec3 uColor1, uColor2, uColor3, uColor4, uColor5;
+
+      void main() {
+        if (length(gl_PointCoord - vec2(0.5)) > 0.5) discard;
+
+        float dist = length(vPos.xy) * 0.15;
+        float swirl = fract(dist - uTime * 0.15 + (uMids * uAudioActive * 2.0));
+        
+        vec3 col = mix(uColor1, uColor2, smoothstep(0.0, 0.2, swirl));
+        col = mix(col, uColor3, smoothstep(0.2, 0.4, swirl));
+        col = mix(col, uColor4, smoothstep(0.4, 0.6, swirl));
+        col = mix(col, uColor5, smoothstep(0.6, 0.8, swirl));
+        col = mix(col, uColor1, smoothstep(0.8, 1.0, swirl));
+
+        col += uHighs * uAudioActive * 0.8;
+        gl_FragColor = vec4(col, 0.9);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  }), []);
+
+  useFrame((state, delta) => {
+    const time = state.clock.elapsedTime;
+    const { bass, mids, highs } = getThreeBands(audioData);
+
+    currentBass.current = THREE.MathUtils.lerp(currentBass.current, bass, delta * 10);
+    currentMids.current = THREE.MathUtils.lerp(currentMids.current, mids, delta * 10);
+    currentHighs.current = THREE.MathUtils.lerp(currentHighs.current, highs, delta * 10);
+
+    const audioActive = THREE.MathUtils.smoothstep(time, 15.5, 16.5);
+
+    if (materialRef.current) {
+      // eslint-disable-next-line react-hooks/immutability
+      materialRef.current.uniforms.uTime.value = time;
+      // eslint-disable-next-line react-hooks/immutability
+      materialRef.current.uniforms.uAudioActive.value = audioActive;
+      // eslint-disable-next-line react-hooks/immutability
+      materialRef.current.uniforms.uBass.value = currentBass.current;
+      // eslint-disable-next-line react-hooks/immutability
+      materialRef.current.uniforms.uMids.value = currentMids.current;
+      // eslint-disable-next-line react-hooks/immutability
+      materialRef.current.uniforms.uHighs.value = currentHighs.current;
+    }
+
+    if (groupRef.current) {
+    // Use a slow sine wave to shift focus between axes every ~10 seconds
+    const axisSwitch = Math.sin(time * 0.2); 
+    
+    // Highs drive the overall "spin energy"
+    audioRotAccumulator.current += currentHighs.current * audioActive * delta * .8;
+
+    // Distribute the accumulated rotation across axes based on the slow oscillator
+    // When axisSwitch is near 1, it spins mostly on Y. Near -1, mostly on X.
+    groupRef.current.rotation.y = time * 0.08 + (audioRotAccumulator.current * Math.abs(axisSwitch));
+    groupRef.current.rotation.x = THREE.MathUtils.lerp(
+        groupRef.current.rotation.x, 
+        (pointer.y * 0.4) + (audioRotAccumulator.current * (.6 - Math.abs(axisSwitch))), 
+        0.05
+    );
+    
+    // Add a subtle Z-roll driven by the mids for extra fluid movement
+    groupRef.current.rotation.z += currentMids.current * audioActive * delta * 0.5;
+    }
+  });
+
+  return (
+    <group ref={groupRef}>
+      <points>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+          <bufferAttribute attach="attributes-aGerm" args={[aGerm, 3]} />
+          <bufferAttribute attach="attributes-aFlower" args={[aFlower, 3]} />
+          <bufferAttribute attach="attributes-aRandom" args={[aRandom, 1]} />
+        </bufferGeometry>
+        <shaderMaterial ref={materialRef} args={[shaderArgs]} />
+      </points>
+    </group>
+  );
+}
+
+export default function Flower() {
+  const audioData = useAudioData();
+  return (
+    <div style={{ position: "absolute", inset: 0, background: "#000" }}>
+      <Canvas camera={{ position: [0, 0, 15], fov: 55 }}>
+        <Scene audioData={audioData} />
+        <OrbitControls enablePan={false} />
+      </Canvas>
+    </div>
+  );
+}

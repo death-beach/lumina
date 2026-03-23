@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // ─────────────────────────────────────────────────────────────────────────────
 // Lumina Test Reset Script
 // Run with: npm run reset-test

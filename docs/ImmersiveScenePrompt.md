@@ -25,9 +25,9 @@ CONTEXT & REQUIREMENTS:
    [YOUR CREATIVE IDEA HERE]
 
 3. **AUDIO MAPPING (updated & stronger):**
-   - Highs (3.5kHz-20kHz) controls: intensifies the ripples **AND** drives particle expansion/breathing (add uniform `uExpansion` and scale `pos *= (1.0 + uExpansion)` in vertex shader)
-   - Each frequency band must control **completely different** visual aspects (no overlap)
-   - Expansion must feel like a musical "breath" — subtle on low highs, strong on peaks
+   - Highs controls:
+   - Mids controls:
+   - Bass controls:
      **Examples:**
    - Bass controls: Camera rotation speed, element scale, particle density
    - Mids controls: Camera tilt, element complexity, color intensity
