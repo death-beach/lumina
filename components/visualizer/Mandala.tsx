@@ -9,7 +9,7 @@ import { getThreeBands } from "@/lib/audioAnalysis";
 import { useAudioData } from "@/hooks/useAudioData";
 
 // ──────────────────────────────────────────────────────────────
-// BACKGROUND
+// BACKGROUND (unchanged)
 // ──────────────────────────────────────────────────────────────
 const bgVertexShader = `
 uniform float uTime;
@@ -67,7 +67,7 @@ function BackgroundParticles() {
 }
 
 // ──────────────────────────────────────────────────────────────
-// SHADERS (Moved outside to prevent re-compilation)
+// OUTER MANDALA SHADERS (100% unchanged)
 // ──────────────────────────────────────────────────────────────
 const mandalaVertexShader = `
   attribute float aType;
@@ -83,16 +83,10 @@ const mandalaVertexShader = `
     vType = aType;
     vDist = aDist;
     vec3 pos = position;
-
-    // FIX: Protect against NaN from normalizing the (0,0,0) origin point
     vec3 dir = length(pos) > 0.0 ? normalize(pos) : vec3(0.0);
-    
     float breath = sin(uTime * 1.5 + vDist * 5.0) * (0.05 + uAudioMids * 0.5 * uActive);
-    
-    // BASS PULSE (Center Only)
     float centerPulse = (vType < 0.5) ? (uAudioBass * 0.4 * uActive) : 0.0;
     float scale = 1.0 + centerPulse;
-
     pos = pos * scale + dir * breath;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
   }
@@ -108,29 +102,20 @@ const mandalaFragmentShader = `
   uniform float uActive;
 
   void main() {
-    // START STATE: PURE WHITE
     vec3 finalColor = vec3(1.0, 1.0, 1.0);
 
     if (vType < 0.5) {
-      // MID FREQ: CENTER SHAPE BLUES
       float blueCycle = sin(uTime * 4.0 + uAudioMids * 10.0) * 0.5 + 0.5;
       vec3 midBlue = mix(vec3(0.0, 0.2, 1.0), vec3(0.4, 0.9, 1.0), blueCycle);
-      
-      // Transition from White to Blue based on Mid intensity + 17s gate
       finalColor = mix(finalColor, midBlue, uActive * clamp(uAudioMids * 3.0, 0.0, 1.0));
     } else {
-      // LOW FREQ: PURPLE PUSH OUT
       float pWave = smoothstep(0.7, 1.0, fract(vDist * 2.5 - uTime * 2.0));
       vec3 purple = vec3(0.6, 0.1, 1.0);
-      
-      // HIGH FREQ: RED PUSH IN
       float rWave = smoothstep(0.7, 1.0, fract(vDist * 2.5 + uTime * 2.5));
       vec3 red = vec3(1.0, 0.1, 0.1);
 
-      // Mix waves into the lines after 17s
       vec3 waveColor = mix(finalColor, purple, pWave * clamp(uAudioBass * 4.0, 0.0, 1.0));
       waveColor = mix(waveColor, red, rWave * clamp(uAudioHighs * 4.0, 0.0, 1.0));
-      
       finalColor = mix(finalColor, waveColor, uActive);
     }
 
@@ -144,8 +129,16 @@ const mandalaFragmentShader = `
 function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
   const groupRef = useRef<THREE.Group>(null);
   const mainMatRef = useRef<THREE.ShaderMaterial>(null);
+  const centerGroupRef = useRef<THREE.Group>(null);
 
-  // FIX: Memoize uniforms so React rendering doesn't overwrite useFrame mutations
+  // Shared materials for the entire center shape (this was the missing piece)
+  const borderMaterial = useMemo(() => 
+    new THREE.MeshBasicMaterial({ transparent: false, blending: THREE.AdditiveBlending }), 
+  []);
+  const internalMaterial = useMemo(() => 
+    new THREE.MeshBasicMaterial({ transparent: false, blending: THREE.AdditiveBlending }), 
+  []);
+
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
     uAudioBass: { value: 0 },
@@ -154,26 +147,29 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
     uActive: { value: 0 }
   }), []);
 
-  const { linePositions, lineIndices, lineTypes, lineDists } = useMemo(() => {
+  const { outerPositions, outerIndices, outerTypes, outerDists, borderSegments, internalSegments } = useMemo(() => {
     const positions: number[] = [];
     const indices: number[] = [];
     const types: number[] = [];
     const dists: number[] = [];
     let idx = 0;
 
-    const addLine = (points: THREE.Vector3[], type: number) => {
+    const borderSegments: THREE.Vector3[][] = [];
+    const internalSegments: THREE.Vector3[][] = [];
+
+    const addOuterLine = (points: THREE.Vector3[], type: number) => {
       points.forEach((p, i) => {
         positions.push(p.x, p.y, p.z);
         types.push(type);
-        dists.push(p.length() / 13.0); 
+        dists.push(p.length() / 13.0);
         if (i > 0) indices.push(idx - 1, idx);
         idx++;
       });
     };
 
+    // Outer spokes
     const spokes = 12;
     const maxR = 13;
-
     for (let s = 0; s < spokes; s++) {
       const angle = (s / spokes) * Math.PI * 2;
       const points: THREE.Vector3[] = [];
@@ -181,9 +177,10 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
         const radius = (r / 42) * maxR;
         points.push(new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, 0));
       }
-      addLine(points, 1.0);
+      addOuterLine(points, 1.0);
     }
 
+    // Outer petals / layers
     const layers = [3.2, 5.8, 8.4, 11.0];
     layers.forEach((baseR) => {
       const pts = 180;
@@ -198,27 +195,47 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
         for (let k = 0; k <= 1; k++) {
           points.push(new THREE.Vector3(x * (0.3 + k * 0.7), y * (0.3 + k * 0.7), z * k));
         }
-        addLine(points, 1.0);
+        addOuterLine(points, 1.0);
       }
     });
 
+    // Center shape split
     const triPoints = [
       new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(1.8, 0, 0), new THREE.Vector3(0.9, 1.55, 0),
-      new THREE.Vector3(-0.9, 1.55, 0), new THREE.Vector3(-1.8, 0, 0),
-      new THREE.Vector3(-0.9, -1.55, 0), new THREE.Vector3(0.9, -1.55, 0)
+      new THREE.Vector3(1.8, 0, 0),
+      new THREE.Vector3(0.9, 1.55, 0),
+      new THREE.Vector3(-0.9, 1.55, 0),
+      new THREE.Vector3(-1.8, 0, 0),
+      new THREE.Vector3(-0.9, -1.55, 0),
+      new THREE.Vector3(0.9, -1.55, 0)
     ];
-    for (let i = 0; i < triPoints.length; i++) {
-      for (let j = i + 1; j < triPoints.length; j++) {
-        addLine([triPoints[i], triPoints[j]], 0.0);
+
+    const hexPoints = triPoints.slice(1); // 6 outer hexagon points
+
+    // Border = outer hexagon
+    for (let i = 0; i < hexPoints.length; i++) {
+      const a = hexPoints[i];
+      const b = hexPoints[(i + 1) % hexPoints.length];
+      borderSegments.push([a.clone(), b.clone()]);
+    }
+
+    // Internal lines (center spokes + all cross connections)
+    for (let i = 0; i < hexPoints.length; i++) {
+      internalSegments.push([triPoints[0].clone(), hexPoints[i].clone()]);
+    }
+    for (let i = 0; i < hexPoints.length; i++) {
+      for (let j = i + 1; j < hexPoints.length; j++) {
+        internalSegments.push([hexPoints[i].clone(), hexPoints[j].clone()]);
       }
     }
 
     return {
-      linePositions: new Float32Array(positions),
-      lineIndices: new Uint16Array(indices),
-      lineTypes: new Float32Array(types),
-      lineDists: new Float32Array(dists),
+      outerPositions: new Float32Array(positions),
+      outerIndices: new Uint16Array(indices),
+      outerTypes: new Float32Array(types),
+      outerDists: new Float32Array(dists),
+      borderSegments,
+      internalSegments,
     };
   }, []);
 
@@ -229,7 +246,6 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
     const introProgress = Math.min(time / 17.0, 1.0);
     const ease = introProgress * introProgress * (3.0 - 2.0 * introProgress);
     const currentScale = 0.01 + ease * 0.99;
-    
     const isActive = time > 17.0 ? 1.0 : 0.0;
 
     if (groupRef.current) {
@@ -244,16 +260,32 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
       mainMatRef.current.uniforms.uAudioHighs.value = highs;
       mainMatRef.current.uniforms.uActive.value = isActive;
     }
+
+    // Center pulse
+    if (centerGroupRef.current) {
+      const pulse = 1 + bass * 0.35 * isActive;
+      centerGroupRef.current.scale.setScalar(pulse);
+    }
+
+    // Mid-frequency blue sweep (now applied to the entire center shape)
+    const midIntensity = mids * isActive;
+
+    // Border = deeper blue
+    borderMaterial.color.setHSL(0.6, 1.0, 0.4 + midIntensity * 0.5);
+
+    // Internal lines = lighter cyan-blue
+    internalMaterial.color.setHSL(0.62, 0.9, 0.1 + midIntensity * 0.3);
   });
 
   return (
     <group ref={groupRef}>
+      {/* Outer mandala — exactly your original thin lines */}
       <lineSegments>
         <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[linePositions, 3]} />
-          <bufferAttribute attach="attributes-aType" args={[lineTypes, 1]} />
-          <bufferAttribute attach="attributes-aDist" args={[lineDists, 1]} />
-          <bufferAttribute attach="index" args={[lineIndices, 1]} />
+          <bufferAttribute attach="attributes-position" args={[outerPositions, 3]} />
+          <bufferAttribute attach="attributes-aType" args={[outerTypes, 1]} />
+          <bufferAttribute attach="attributes-aDist" args={[outerDists, 1]} />
+          <bufferAttribute attach="index" args={[outerIndices, 1]} />
         </bufferGeometry>
         <shaderMaterial
           ref={mainMatRef}
@@ -264,6 +296,25 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
           blending={THREE.AdditiveBlending}
         />
       </lineSegments>
+
+      {/* Center shape — tubes with shared materials so color reacts instantly */}
+      <group ref={centerGroupRef}>
+        {/* Border: outer hexagon */}
+        {borderSegments.map((points, i) => (
+          <mesh key={`border-${i}`}>
+            <tubeGeometry args={[new THREE.CatmullRomCurve3(points), 1, 0.03, 6, false]} />
+            <primitive object={borderMaterial} attach="material" />
+          </mesh>
+        ))}
+
+        {/* Internal lines */}
+        {internalSegments.map((points, i) => (
+          <mesh key={`internal-${i}`}>
+            <tubeGeometry args={[new THREE.CatmullRomCurve3(points), 1, 0.03, 6, false]} />
+            <primitive object={internalMaterial} attach="material" />
+          </mesh>
+        ))}
+      </group>
     </group>
   );
 }
