@@ -5,11 +5,11 @@ import type { LuminaConfig } from "@/lib/config";
 
 const config: LuminaConfig = {
   artist: {
-    name: "Death Beach",
+    name: "Artist Name",
   },
 
   album: {
-    title: "Terrorist",
+    title: "Title",
   },
 
   theme: {
@@ -22,8 +22,8 @@ const config: LuminaConfig = {
   tracks: [
     {
       id: "track-01",
-      title: "Ful",
-      src: "/tracks/Grateful.mp3",
+      title: "track one",
+      src: "/tracks/track1.mp3",
       visual: {
         type: "reactive",
         scene: "particles",
@@ -31,68 +31,14 @@ const config: LuminaConfig = {
     },
     {
       id: "track-02",
-      title: "The Other Side",
-      src: "/tracks/The other side_5.mp3",
-      visual: {
-        type: "reactive",
-        scene: "mandala",
-      },
-    },
-    {
-      id: "track-03",
-      title: "Mic",
-      src: "/tracks/Drunk On The Mic.mp3",
-      visual: {
-        type: "reactive",
-        scene: "flower",
-      },
-      lyrics: {
-        type: "timed",
-        src: "/lyrics/track3.lrc",
-      },
-    },
-    {
-      id: "track-04",
-      title: "Worth It",
-      src: "/tracks/worth it.mp3",
-      visual: {
-        type: "reactive",
-        scene: "sloworbit",
-      },
-    },
-    {
-      id: "track-05",
-      title: "OUTLAW",
-      visual: {
-        type: "video",
-        src: "https://youtu.be/cpVPE_BQXEI?si=_V2x50a8RhdwF44P",
-        loop: false,
-      },
-    },
-    {
-      id: "track-06",
-      title: "Change Rythym",
-      src: "/tracks/Rhythm 4 Change Inst.mp3",
-      visual: {
-        type: "reactive",
-        scene: "tesseract",
-      },
-    },
-    {
-      id: "track-07",
-      title: "Last Call",
-      src: "/tracks/LAST CALL PROD. BY DEATH BEACH.mp3",
+      title: "NFT Song",
+      src: "/tracks/track2.mp3",
       visual: {
         type: "reactive",
         scene: "pillar",
       },
-      lyrics: {
-        type: "static",
-        text: "These are lyrics \nFor a song\nThey are static\nOn the screen while visuals play\nAre the lines broken\nCan fans be immersed in the experience\nCan they read and feel the words\nWhat comes next",
-      },
     }
   ],
-  storeUrl: "www.deathbeachstudio.com",
 
   features: {
     showPlaylist: true,
