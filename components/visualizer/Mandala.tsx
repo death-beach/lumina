@@ -253,6 +253,13 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
 
   const borderMaterial = useMemo(() => new THREE.MeshBasicMaterial({ transparent: false, blending: THREE.AdditiveBlending }), []);
   const internalMaterial = useMemo(() => new THREE.MeshBasicMaterial({ transparent: false, blending: THREE.AdditiveBlending }), []);
+  const outlineMaterial = useMemo(() => new THREE.MeshBasicMaterial({ 
+    color: 0x08050f, 
+    transparent: false, 
+    blending: THREE.NormalBlending, 
+    side: THREE.BackSide,
+    depthWrite: false 
+  }), []);
 
   const uniforms = useMemo(() => ({
     uTime: { value: 0 }, 
@@ -436,16 +443,32 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
 
       <group ref={centerGroupRef}>
         {borderSegments.map((points, i) => (
-          <mesh key={`border-${i}`}>
-            <tubeGeometry args={[new THREE.CatmullRomCurve3(points), 1, 0.02, 6, false]} />
-            <primitive object={borderMaterial} attach="material" />
-          </mesh>
+          <group key={`border-${i}`}>
+            {/* Outline mesh - back faces only, slightly larger radius */}
+            <mesh>
+              <tubeGeometry args={[new THREE.CatmullRomCurve3(points), 1, 8.0, 6, false]} />
+              <primitive object={outlineMaterial} attach="material" />
+            </mesh>
+            {/* Main mesh - front faces, smaller radius */}
+            <mesh>
+              <tubeGeometry args={[new THREE.CatmullRomCurve3(points), 1, 0.02, 6, false]} />
+              <primitive object={borderMaterial} attach="material" />
+            </mesh>
+          </group>
         ))}
         {internalSegments.map((points, i) => (
-          <mesh key={`internal-${i}`}>
-            <tubeGeometry args={[new THREE.CatmullRomCurve3(points), 1, 0.03, 6, false]} />
-            <primitive object={internalMaterial} attach="material" />
-          </mesh>
+          <group key={`internal-${i}`}>
+            {/* Outline mesh - back faces only, slightly larger radius */}
+            <mesh>
+              <tubeGeometry args={[new THREE.CatmullRomCurve3(points), 1, 0.055, 6, false]} />
+              <primitive object={outlineMaterial} attach="material" />
+            </mesh>
+            {/* Main mesh - front faces, smaller radius */}
+            <mesh>
+              <tubeGeometry args={[new THREE.CatmullRomCurve3(points), 1, 0.03, 6, false]} />
+              <primitive object={internalMaterial} attach="material" />
+            </mesh>
+          </group>
         ))}
       </group>
     </group>
