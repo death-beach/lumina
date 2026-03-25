@@ -16,11 +16,21 @@ CONTEXT & REQUIREMENTS:
 9. Include proper TypeScript types and JSDoc comments
 10. Add "use no memo" directive at the top of the file to opt out of React Compiler
 
-**User Required Information:**
+## STEP 1: INTERVIEW THE USER
 
-1. **Component Name:** [YourVisualizerName] (must be unique)
-2. **CREATEIVE IDEA:**
-   [YOUR CREATIVE IDEA HERE]
+**BEFORE writing any code, ask the user these 5 questions:**
+
+1. **MOOD/FEEL:** "Is this meditative and slow, or intense and reactive? Give me a reference: a place, a feeling, a scene in nature, or a film."
+2. **CENTRAL SHAPE:** "What's at the heart of the scene? (e.g., a sphere, geometric lines, flowing ribbons, a tunnel, sacred geometry)"
+3. **ATMOSPHERE:** "What surrounds the central shape? (e.g., deep void, thick fog, starfield, empty space, mist)"
+4. **MUSIC RESPONSE:** "When the bass hits hard, what happens? When the highs come in, what changes?"
+5. **COLOR:** "Name 1-3 colors, or describe the color feeling (e.g., 'like a neon sign in rain', 'warm gold sunset', 'cold deep ocean')"
+
+**Wait for the user's answers before proceeding.**
+
+## STEP 2: GENERATE THE COMPONENT
+
+**After receiving answers, generate the complete component in one shot.**
 
 AUDIO BAND MAPPING RULES (CRITICAL):
 

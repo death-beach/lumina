@@ -18,28 +18,23 @@ CONTEXT & REQUIREMENTS:
 9. Include proper TypeScript types and JSDoc comments
 10. Add "use no memo" directive at the top of the file to opt out of React Compiler
 
-**User Required Information:**
+## STEP 1: INTERVIEW THE USER
 
-1. **Component Name:** [YourVisualizerName] (must be unique)
-2. **IMMERSIVE IDEA:**
-   [YOUR CREATIVE IDEA HERE]
+**BEFORE writing any code, ask the user these 5 questions:**
 
-3. **AUDIO MAPPING (updated & stronger):**
-   - Highs controls:
-   - Mids controls:
-   - Bass controls:
-     **Examples:**
-   - Bass controls: Camera rotation speed, element scale, particle density
-   - Mids controls: Camera tilt, element complexity, color intensity
-   - Highs controls: Particle velocity, detail level, spark effects
+1. **MOOD/FEEL:** "Is this meditative and slow, or intense and reactive? Give me a reference: a place, a feeling, a scene in nature, or a film."
+2. **CENTRAL SHAPE:** "What's at the heart of the scene? (e.g., a sphere, geometric lines, flowing ribbons, a tunnel, sacred geometry)"
+3. **ATMOSPHERE:** "What surrounds the central shape? (e.g., deep void, thick fog, starfield, empty space, mist)"
+4. **MUSIC RESPONSE:** "When the bass hits hard, what happens? When the highs come in, what changes?"
+5. **COLOR:** "Name 1-3 colors, or describe the color feeling (e.g., 'like a neon sign in rain', 'warm gold sunset', 'cold deep ocean')"
 
-4. **COLOR SYSTEM (Optional):**
-   - Time-based color transitions at specific intervals (e.g., 30s, 45s, 60s)
-   - Audio-reactive coloring: [User defines color mapping for frequency bands]
-   - Distance-based color variation (center vs outer particles)
-   - Smooth color interpolation with no hard cuts
+**Wait for the user's answers before proceeding.**
 
-   **IMPORTANT:** Each frequency band should control DIFFERENT aspects of the scene to avoid conflicts.
+## STEP 2: GENERATE THE COMPONENT
+
+**After receiving answers, generate the complete component in one shot.**
+
+**IMPORTANT:** Each frequency band should control DIFFERENT aspects of the scene to avoid conflicts.
 
 IMMERSIVE SCENE REQUIREMENTS:
 

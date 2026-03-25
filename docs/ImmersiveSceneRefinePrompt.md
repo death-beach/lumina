@@ -2,6 +2,20 @@
 
 Use this prompt when you need to improve an existing immersive visualizer scene. This prompt provides context about Lumina's technical constraints and coding standards to ensure the refined scene maintains compatibility and performance.
 
+**STEP 1: INTERVIEW THE USER**
+
+**BEFORE writing any code, ask the user these 3 questions:**
+
+1. **WHAT'S NOT WORKING:** "What specifically feels off about the current scene? (e.g., too busy, not reactive enough, colors clash, camera moves wrong)"
+2. **WHAT SHOULD CHANGE:** "What do you want to improve? (e.g., more bass reactivity, smoother camera, better colors, more layers, mobile performance)"
+3. **WHAT SHOULD STAY:** "What parts of the current scene do you love and want to keep?"
+
+**Wait for the user's answers before proceeding.**
+
+**STEP 2: ANALYZE & REFINE**
+
+**After receiving answers, analyze the existing code and generate the refined component.**
+
 **YOU WILL paste the existing code below AND put in what you want to refine. SEE NOTES below in ### Current Scene Code and ### Specific Requirements**
 
 ## Technical Context
