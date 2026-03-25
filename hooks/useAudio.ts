@@ -27,6 +27,8 @@ export function useAudio(src: string): UseAudioReturn {
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
   const retryCountRef = useRef(0);
   const maxRetries = 3;
+  const isSeekingRef = useRef(false);
+  const fallbackModeRef = useRef(false);
 
   const { volume, isMuted, setProgress, setAudioContext, setAnalyserNode: setStoreAnalyser } = usePlayerStore();
 
@@ -155,7 +157,7 @@ export function useAudio(src: string): UseAudioReturn {
       setAnalyserNode(null);
       setStoreAnalyser(null);
     };
-  }, [src, volume, isMuted, setProgress, setAudioContext, setStoreAnalyser]);
+  }, [src]);
 
   // Update volume when store changes
   useEffect(() => {
@@ -176,13 +178,65 @@ export function useAudio(src: string): UseAudioReturn {
     }
   }, []);
 
-  const seek = useCallback((time: number) => {
-    if (howlRef.current) {
-      howlRef.current.seek(time);
+  const seek = useCallback(async (time: number): Promise<boolean> => {
+    if (!howlRef.current || !isLoaded) {
+      return false;
+    }
+
+    // Prevent concurrent seeking operations
+    if (isSeekingRef.current) {
+      console.warn('Audio seek already in progress, skipping');
+      return false;
+    }
+
+    isSeekingRef.current = true;
+    
+    try {
+      // Try Web Audio API seeking first
+      const howl = howlRef.current;
+      howl.seek(time);
       setCurrentTime(time);
       setProgress(time / duration);
+
+      // Wait a brief moment to ensure the seek completed successfully
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Verify the seek was successful
+      const actualTime = howl.seek() as number;
+      const timeDiff = Math.abs(actualTime - time);
+      
+      if (timeDiff > 0.1) { // Allow small tolerance
+        console.warn(`Audio seek verification failed: requested ${time}, got ${actualTime}`);
+        throw new Error('Seek verification failed');
+      }
+
+      isSeekingRef.current = false;
+      return true;
+
+    } catch (error) {
+      console.error('Audio seek failed:', error);
+      
+      // Increment retry count and check if we should switch to fallback mode
+      retryCountRef.current++;
+      
+      if (retryCountRef.current >= maxRetries) {
+        console.warn('Audio seek failed multiple times, switching to HTML5 fallback mode');
+        fallbackModeRef.current = true;
+        
+        // Force reload with HTML5 mode by creating a new Howl instance
+        if (howlRef.current) {
+          howlRef.current.unload();
+          const newHowl = createHowlWithRetry(src, 0);
+          // Force HTML5 mode for the new instance
+          (newHowl as unknown as { html5: boolean }).html5 = true;
+          howlRef.current = newHowl;
+        }
+      }
+      
+      isSeekingRef.current = false;
+      return false;
     }
-  }, [duration, setProgress]);
+  }, [duration, setProgress, isLoaded, src]);
 
   const setVolumeLevel = useCallback((vol: number) => {
     if (howlRef.current) {

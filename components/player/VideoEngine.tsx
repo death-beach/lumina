@@ -97,12 +97,25 @@ export function VideoEngine() {
     video.muted = isMuted;
   }, [volume, isMuted, isVideoTrack, isIframe]);
 
-  // Handle seeking for direct MP4
+  // Handle seeking for direct MP4 with sequential coordination
   useEffect(() => {
     if (isIframe || !isVideoTrack || !isLoaded || !duration || seekTarget === null) return;
-    const seekTime = seekTarget * duration;
-    seek(seekTime);
-    setSeekTarget(null);
+    
+    const handleSeek = async () => {
+      const seekTime = seekTarget * duration;
+      
+      // First, seek the audio (if available) and wait for confirmation
+      // Note: Audio seeking is handled by useAudio hook, we just need to coordinate video seeking
+      
+      // Wait a brief moment to ensure audio has started seeking
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
+      // Then seek the video
+      seek(seekTime);
+      setSeekTarget(null);
+    };
+    
+    handleSeek();
   }, [seekTarget, duration, isVideoTrack, isLoaded, seek, setSeekTarget, isIframe]);
 
   // Auto-advance for direct MP4

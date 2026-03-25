@@ -2,6 +2,7 @@
 
 import { usePlayerStore } from "@/store/playerStore";
 import { usePlaylist } from "@/hooks/usePlaylist";
+import { useState, useRef } from "react";
 
 export function Controls() {
   const isPlaying = usePlayerStore(s => s.isPlaying);
@@ -14,6 +15,13 @@ export function Controls() {
   const seekTo = usePlayerStore(s => s.seekTo);
 
   const { hasNext, hasPrev, nextTrack, prevTrack } = usePlaylist();
+  
+  // Local state for drag-to-seek
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragProgress, setDragProgress] = useState(progress);
+  
+  // Track skip cooldown
+  const lastSkipRef = useRef(0);
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
@@ -36,9 +44,47 @@ export function Controls() {
     setVolume(newVolume);
   };
 
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newProgress = parseFloat(e.target.value);
-    seekTo(newProgress);
+  // Drag-to-seek handlers
+  const handleSeekStart = (e: React.MouseEvent<HTMLInputElement> | React.TouchEvent<HTMLInputElement>) => {
+    setIsDragging(true);
+    const target = e.target as HTMLInputElement;
+    const newProgress = parseFloat(target.value);
+    setDragProgress(newProgress);
+  };
+
+  const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement> | React.TouchEvent<HTMLInputElement>) => {
+    if (isDragging) {
+      const target = e.target as HTMLInputElement;
+      const newProgress = parseFloat(target.value);
+      setDragProgress(newProgress);
+    }
+  };
+
+  const handleSeekEnd = () => {
+    if (isDragging) {
+      setIsDragging(false);
+      // Only seek on release to prevent rapid decode attempts
+      seekTo(dragProgress);
+    }
+  };
+
+  // Track skip handlers with cooldown
+  const handlePrevWithCooldown = () => {
+    const now = Date.now();
+    if (now - lastSkipRef.current < 600) return; // 800ms cooldown
+    lastSkipRef.current = now;
+    if (hasPrev) {
+      prevTrack();
+    }
+  };
+
+  const handleNextWithCooldown = () => {
+    const now = Date.now();
+    if (now - lastSkipRef.current < 600) return; // 800ms cooldown
+    lastSkipRef.current = now;
+    if (hasNext) {
+      nextTrack();
+    }
   };
 
   return (
@@ -46,7 +92,7 @@ export function Controls() {
       {/* Main Controls */}
       <div className="flex items-center gap-6">
         <button
-          onClick={handlePrev}
+          onClick={handlePrevWithCooldown}
           className="p-3 rounded-full bg-accent/20 hover:bg-accent/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={!hasPrev}
         >
@@ -61,7 +107,7 @@ export function Controls() {
         </button>
 
         <button
-          onClick={handleNext}
+          onClick={handleNextWithCooldown}
           className="p-3 rounded-full bg-accent/20 hover:bg-accent/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={!hasNext}
         >
@@ -76,8 +122,14 @@ export function Controls() {
           min="0"
           max="1"
           step="0.001"
-          value={progress}
-          onChange={handleSeek}
+          value={isDragging ? dragProgress : progress}
+          onMouseDown={handleSeekStart}
+          onChange={handleSeekChange}
+          onMouseUp={handleSeekEnd}
+          onMouseLeave={handleSeekEnd}
+          onTouchStart={handleSeekStart}
+          onTouchMove={handleSeekChange}
+          onTouchEnd={handleSeekEnd}
           className="w-full h-2 bg-foreground/20 rounded-lg appearance-none cursor-pointer slider"
         />
       </div>

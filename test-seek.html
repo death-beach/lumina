@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Seeking Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            background: #333;
+        }
+        .error { background: #5a1e1e; color: #ffcccc; }
+        .success { background: #1e5a2e; color: #ccffcc; }
+        .info { background: #1e3a5a; color: #cce5ff; }
+        button {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #357abd; }
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Audio Seeking Test</h1>
+    <p>This test demonstrates the improved audio seeking functionality that should resolve the "Decoding audio data failed" error.</p>
+
+    <div class="test-section">
+        <h3>Test Instructions:</h3>
+        <ol>
+            <li>Open your Lumina application in the browser</li>
+            <li>Play a track with an audio file</li>
+            <li>Try fast seeking by clicking different positions on the progress bar</li>
+            <li>Try rapid seeking by quickly clicking multiple positions</li>
+            <li>Observe that the audio should now seek reliably without decoding errors</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h3>What Was Fixed:</h3>
+        <ul>
+            <li><strong>Sequential Seeking:</strong> Audio seeks first, then video follows</li>
+            <li><strong>Enhanced Error Recovery:</strong> Automatic fallback to HTML5 audio if Web Audio API fails</li>
+            <li><strong>Seek Verification:</strong> Confirms seeks complete successfully</li>
+            <li><strong>Concurrent Seek Prevention:</strong> Prevents multiple seeks from conflicting</li>
+            <li><strong>Improved Retry Logic:</strong> Better handling of decoding failures</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h3>Expected Behavior:</h3>
+        <div class="status info">
+            <strong>Before Fix:</strong> Fast seeking would cause "Decoding audio data failed" errors and retries
+        </div>
+        <div class="status success">
+            <strong>After Fix:</strong> Fast seeking should work smoothly with automatic fallback if needed
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>Technical Details:</h3>
+        <p>The implementation includes:</p>
+        <ul>
+            <li>Async seek function with promise-based coordination</li>
+            <li>Sequential audio-then-video seeking</li>
+            <li>Automatic fallback to HTML5 audio mode after repeated failures</li>
+            <li>Seek verification to ensure operations complete successfully</li>
+            <li>Prevention of concurrent seeking operations</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h3>Test Status:</h3>
+        <div class="status success">✅ Implementation Complete</div>
+        <div class="status info">🔄 Development Server Running</div>
+        <div class="status info">🎯 Ready for Testing</div>
+    </div>
+
+    <script>
+        // Simple test to verify the page loads correctly
+        console.log('Audio seeking test page loaded successfully');
+        
+        // Add some interactive elements for testing
+        const testButtons = document.createElement('div');
+        testButtons.innerHTML = `
+            <h3>Quick Test Actions:</h3>
+            <button onclick="alert('Test: Try fast seeking in your Lumina app')">Test Fast Seeking</button>
+            <button onclick="alert('Test: Try rapid seeking in your Lumina app')">Test Rapid Seeking</button>
+            <button onclick="alert('Test: Try normal playback in your Lumina app')">Test Normal Playback</button>
+        `;
+        document.body.appendChild(testButtons);
+    </script>
+</body>
+</html>

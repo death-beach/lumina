@@ -376,10 +376,10 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
     const time = state.clock.elapsedTime;
     const { bass, mids, highs } = getThreeBands(audioData);
     
-    const introProgress = Math.min(time / 17.0, 1.0);
+    const introProgress = Math.min(time / 11.0, 1.0);
     const ease = introProgress * introProgress * (3.0 - 2.0 * introProgress);
     const currentScale = 0.01 + ease * 0.99;
-    const isActive = time > 17.0 ? 1.0 : 0.0;
+    const isActive = time > 11.0 ? 1.0 : 0.0;
 
     if (groupRef.current) {
       groupRef.current.scale.set(currentScale, currentScale, currentScale);
