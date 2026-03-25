@@ -87,6 +87,16 @@ You'll need:
    - In Vercel dashboard, go to your project settings
    - Add your domain under "Domains"
 
+4. **Set up a subdomain (optional):**
+   > Perfect for hosting your Lumina player at something like `album.yourname.com` or `music.yoursite.com`.
+   - In your domain registrar (GoDaddy, Namecheap, Squarespace, etc.), go to your DNS settings
+   - Add a **CNAME record** with:
+     - **Name/Host:** `album` (or whatever prefix you want)
+     - **Value/Target:** `cname.vercel-dns.com`
+   - Back in Vercel, go to your project → Settings → Domains → Add Domain
+   - Enter `album.yoursite.com` — Vercel will verify the CNAME and activate it
+   - DNS changes can take a few minutes to a few hours to propagate
+
 ## Tips & Features
 
 ### Adding More Tracks and Fixing Mistakes
