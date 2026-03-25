@@ -2,12 +2,12 @@
 
 ## Quick Start
 
-1. **Copy the prompt template from `ScenePrompt.md`**
-2. **Replace `[YOUR CREATIVE IDEA]` with your scene concept**
+1. **Copy the prompt template from `ScenePrompt.md` or `ImmersiveScentePrompt.md`**
+2. **Paste into favorite AI (Gemini, Claude, Grok) and answer the questions it asks**
 3. **Generate the component code**
-4. **Register your scene in `VisualizerManager.tsx`**
-5. **Add to `lib/config.ts` enum**
-6. **Use in `lumina.config.ts`**
+4. **Register your scene in `VisualizerManager.tsx` (follow instrucitons in `Use_New_Visualizer_Inst.md1`)**
+5. **Add to `lib/config.ts` enum (follow instrucitons in `Use_New_Visualizer_Inst.md1`)**
+6. **Use in `lumina.config.ts` (follow instrucitons in `Use_New_Visualizer_Inst.md1`)**
 7. **Refine your visualizer by using the SceneRefinePrompt.md**
 
 ## Scene Registration
