@@ -48,6 +48,8 @@ export function VideoEngine() {
   const setIsPlaying = usePlayerStore(s => s.setIsPlaying);
   const setTrackDuration = usePlayerStore(s => s.setTrackDuration);
   const setProgress = usePlayerStore(s => s.setProgress);
+  const volume = usePlayerStore(s => s.volume);
+  const isMuted = usePlayerStore(s => s.isMuted);
   const { currentTrack, nextTrack, hasNext } = usePlaylist();
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -86,6 +88,14 @@ export function VideoEngine() {
       pause();
     }
   }, [isPlaying, isVideoTrack, isLoaded, play, pause, isIframe]);
+
+  // Sync volume for direct MP4
+  useEffect(() => {
+    if (isIframe || !isVideoTrack || !videoRef.current) return;
+    const video = videoRef.current;
+    video.volume = isMuted ? 0 : volume;
+    video.muted = isMuted;
+  }, [volume, isMuted, isVideoTrack, isIframe]);
 
   // Handle seeking for direct MP4
   useEffect(() => {
@@ -132,6 +142,7 @@ export function VideoEngine() {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let player: any = null;
+    let isPlayerReady = false;
 
     const initPlayer = () => {
       if (!window.YT || !window.YT.Player) {
@@ -140,44 +151,59 @@ export function VideoEngine() {
         return;
       }
 
-      player = new window.YT.Player(iframeRef.current, {
-        events: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onReady: (event: any) => {
-            playerRef.current = event.target;
-            const dur = event.target.getDuration();
-            if (dur && currentTrack?.id) {
-              setTrackDuration(currentTrack.id, dur);
-            }
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onStateChange: (event: any) => {
-            // -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
-            if (event.data === 0) {
-              // Video ended
-              if (hasNext) {
-                nextTrack();
-              } else {
+      try {
+        player = new window.YT.Player(iframeRef.current, {
+          events: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onReady: (event: any) => {
+              playerRef.current = event.target;
+              isPlayerReady = true;
+              const dur = event.target.getDuration();
+              if (dur && currentTrack?.id) {
+                setTrackDuration(currentTrack.id, dur);
+              }
+              // Start playback if supposed to be playing
+              if (isPlaying) {
+                event.target.playVideo();
+              }
+            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onStateChange: (event: any) => {
+              // -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
+              if (event.data === 0) {
+                // Video ended
+                if (hasNext) {
+                  nextTrack();
+                } else {
+                  setIsPlaying(false);
+                }
+              } else if (event.data === 1) {
+                // Playing
+                setIsPlaying(true);
+              } else if (event.data === 2) {
+                // Paused
                 setIsPlaying(false);
               }
-            } else if (event.data === 1) {
-              // Playing
-              setIsPlaying(true);
-            } else if (event.data === 2) {
-              // Paused
-              setIsPlaying(false);
+            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onError: (event: any) => {
+              console.error('YouTube player error:', event.data);
             }
           },
-        },
-      });
+        });
+      } catch (error) {
+        console.error('Failed to create YouTube player:', error);
+      }
     };
 
     initPlayer();
 
     return () => {
+      isPlayerReady = false;
       if (playerRef.current) {
         try {
           playerRef.current.stopVideo();
+          playerRef.current.destroy();
         } catch (e) {
           // Ignore errors during cleanup
         }
@@ -190,33 +216,62 @@ export function VideoEngine() {
   useEffect(() => {
     if (!isYouTube || !playerRef.current) return;
     
-    try {
-      if (isPlaying) {
-        playerRef.current.playVideo();
-      } else {
-        playerRef.current.pauseVideo();
+    const attemptControl = () => {
+      try {
+        if (isPlaying) {
+          playerRef.current.playVideo();
+        } else {
+          playerRef.current.pauseVideo();
+        }
+      } catch (e) {
+        // Player not ready yet, try again after a short delay
+        setTimeout(attemptControl, 100);
       }
-    } catch (e) {
-      // Player not ready yet
-    }
+    };
+    
+    attemptControl();
   }, [isPlaying, isYouTube]);
+
+  // YouTube volume control
+  useEffect(() => {
+    if (!isYouTube || !playerRef.current) return;
+    
+    const attemptVolume = () => {
+      try {
+        // YouTube player volume is 0-100, convert from 0-1
+        const volumeLevel = isMuted ? 0 : Math.round(volume * 100);
+        playerRef.current.setVolume(volumeLevel);
+      } catch (e) {
+        // Player not ready yet, try again after a short delay
+        setTimeout(attemptVolume, 100);
+      }
+    };
+    
+    attemptVolume();
+  }, [volume, isMuted, isYouTube]);
 
   // YouTube seeking
   useEffect(() => {
     if (!isYouTube || !playerRef.current || seekTarget === null) return;
     
-    try {
-      const dur = playerRef.current.getDuration();
-      if (dur && dur > 0) {
-        const seekSeconds = seekTarget * dur;
-        playerRef.current.seekTo(seekSeconds, true);
+    const attemptSeek = () => {
+      try {
+        const dur = playerRef.current.getDuration();
+        if (dur && dur > 0) {
+          const seekSeconds = seekTarget * dur;
+          playerRef.current.seekTo(seekSeconds, true);
+          // Immediately update progress to match seek position
+          setProgress(seekTarget);
+        }
+      } catch (e) {
+        // Player not ready yet, try again after a short delay
+        setTimeout(attemptSeek, 100);
       }
-    } catch (e) {
-      // Player not ready yet
-    }
+    };
     
+    attemptSeek();
     setSeekTarget(null);
-  }, [seekTarget, isYouTube, setSeekTarget]);
+  }, [seekTarget, isYouTube, setSeekTarget, setProgress]);
 
   // YouTube progress tracking - poll getCurrentTime() every 250ms
   useEffect(() => {
@@ -319,6 +374,19 @@ export function VideoEngine() {
     }
   }, [isPlaying, isVimeo]);
 
+  // Vimeo volume control
+  useEffect(() => {
+    if (!isVimeo || !vimeoPlayerRef.current) return;
+    
+    const player = vimeoPlayerRef.current;
+    
+    // Vimeo player volume is 0-1, same as our store
+    const volumeLevel = isMuted ? 0 : volume;
+    player.setVolume(volumeLevel).catch(() => {
+      // Ignore volume errors
+    });
+  }, [volume, isMuted, isVimeo]);
+
   // Vimeo seeking
   useEffect(() => {
     if (!isVimeo || !vimeoPlayerRef.current || seekTarget === null) return;
@@ -331,13 +399,15 @@ export function VideoEngine() {
         player.setCurrentTime(seekSeconds).catch(() => {
           // Ignore seek errors
         });
+        // Immediately update progress to match seek position
+        setProgress(seekTarget);
       }
     }).catch(() => {
       // Ignore duration errors
     });
     
     setSeekTarget(null);
-  }, [seekTarget, isVimeo, setSeekTarget]);
+  }, [seekTarget, isVimeo, setSeekTarget, setProgress]);
 
   // Log errors for direct MP4
   useEffect(() => {
@@ -357,7 +427,7 @@ export function VideoEngine() {
       <div className="absolute inset-0 w-full h-full">
         <iframe
           ref={iframeRef}
-          src={`https://www.youtube.com/embed/${youtubeId}?controls=0&modestbranding=1&rel=0&enablejsapi=1`}
+          src={`https://www.youtube.com/embed/${youtubeId}?controls=0&modestbranding=1&rel=0&enablejsapi=1&autoplay=1`}
           className="absolute inset-0 w-full h-full"
           allow="autoplay; encrypted-media"
           allowFullScreen

@@ -9,7 +9,7 @@ const config: LuminaConfig = {
   },
 
   album: {
-    title: "Terminal",
+    title: "Terrorist",
   },
 
   theme: {
@@ -22,20 +22,73 @@ const config: LuminaConfig = {
   tracks: [
     {
       id: "track-01",
-      title: "Harry Potter",
-      src: "/tracks/Drunk On The Mic.mp3",
+      title: "Ful",
+      src: "/tracks/Grateful.mp3",
+      visual: {
+        type: "reactive",
+        scene: "particles",
+      },
+    },
+    {
+      id: "track-02",
+      title: "The Other Side",
+      src: "/tracks/The other side_5.mp3",
       visual: {
         type: "reactive",
         scene: "mandala",
       },
     },
     {
-      id: "track-02",
+      id: "track-03",
+      title: "Mic",
+      src: "/tracks/Drunk On The Mic.mp3",
+      visual: {
+        type: "reactive",
+        scene: "flower",
+      },
+      lyrics: {
+        type: "timed",
+        src: "/lyrics/track3.lrc",
+      },
+    },
+    {
+      id: "track-04",
+      title: "Worth It",
+      src: "/tracks/worth it.mp3",
+      visual: {
+        type: "reactive",
+        scene: "sloworbit",
+      },
+    },
+    {
+      id: "track-05",
+      title: "OUTLAW",
+      visual: {
+        type: "video",
+        src: "https://youtu.be/cpVPE_BQXEI?si=_V2x50a8RhdwF44P",
+        loop: false,
+      },
+    },
+    {
+      id: "track-06",
+      title: "Change Rythym",
+      src: "/tracks/Rhythm 4 Change Inst.mp3",
+      visual: {
+        type: "reactive",
+        scene: "tesseract",
+      },
+    },
+    {
+      id: "track-07",
       title: "Last Call",
       src: "/tracks/LAST CALL PROD. BY DEATH BEACH.mp3",
       visual: {
         type: "reactive",
-        scene: "flower",
+        scene: "pillar",
+      },
+      lyrics: {
+        type: "static",
+        text: "These are lyrics \nFor a song\nThey are static\nOn the screen while visuals play\nAre the lines broken\nCan fans be immersed in the experience\nCan they read and feel the words\nWhat comes next",
       },
     }
   ],

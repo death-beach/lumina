@@ -145,12 +145,33 @@ header("Album (optional)");
 dim("  If you're releasing a full album, enter its title. Otherwise press Enter to skip.");
 const albumTitle = await ask("Album title", "");
 
+// ── Visualizer Assignment System ─────────────────────────────────────────────
+// Define the fixed visualizer sequence for MP3 tracks
+const VISUALIZER_SEQUENCE = [
+  "particles",   // Track 1
+  "mandala",     // Track 2  
+  "flower",      // Track 3
+  "sloworbit",   // Track 4
+  "tesseract",   // Track 5
+  "pillar",      // Track 6
+  "animal"       // Track 7
+];
+
+header("Visualizer Assignment");
+print(`  ${DIM}MP3 tracks will automatically get visualizers in this order:${RESET}`);
+print(`  ${DIM}1. particles, 2. mandala, 3. flower, 4. sloworbit, 5. tesseract, 6. pillar, 7. animal${RESET}`);
+print(`  ${DIM}The sequence repeats for additional MP3 tracks.${RESET}`);
+print(`  ${DIM}Video tracks will use their video as the visualizer.${RESET}`);
+print("");
+
 // ── Tracks ────────────────────────────────────────────────────────────────────
 header("Tracks");
 const trackCountStr = await ask("How many tracks?", "1");
 const trackCount = Math.max(1, Math.min(50, parseInt(trackCountStr, 10) || 1));
 
 const trackEntries = [];
+let mp3TrackCounter = 0; // Track only MP3 tracks for visualizer assignment
+
 for (let i = 1; i <= trackCount; i++) {
   const name = await ask(`Track ${i} name`);
   const trackName = name || `Track ${i}`;
@@ -160,13 +181,21 @@ for (let i = 1; i <= trackCount; i++) {
   let videoFile = null;
   let lyricsType = null;
   let lyricsContent = null;
+  let assignedVisualizer = null;
 
   if (isVideo) {
     print(`  ${DIM}Paste a YouTube or Vimeo URL, or a direct MP4 link.${RESET}`);
     videoFile = await ask(`  Video URL`, ``);
+    print(`  ${GREEN}✓ Video track will use video as visualizer${RESET}`);
   } else {
     audioFile = await ask(`  Audio filename`, `track${i}.mp3`);
     audioFile = audioFile.replace(/\.mp3$/i, "") + ".mp3";
+    
+    // Assign visualizer based on MP3 track position
+    mp3TrackCounter++;
+    const visualizerIndex = (mp3TrackCounter - 1) % VISUALIZER_SEQUENCE.length;
+    assignedVisualizer = VISUALIZER_SEQUENCE[visualizerIndex];
+    print(`  ${GREEN}✓ MP3 track ${mp3TrackCounter} assigned visualizer: ${assignedVisualizer}${RESET}`);
 
     const hasLyrics = await askYesNo(`  Does "${trackName}" have lyrics?`, false);
     if (hasLyrics) {
@@ -191,7 +220,15 @@ for (let i = 1; i <= trackCount; i++) {
     }
   }
 
-  trackEntries.push({ name: trackName, isVideo, audioFile, videoFile, lyricsType, lyricsContent });
+  trackEntries.push({ 
+    name: trackName, 
+    isVideo, 
+    audioFile, 
+    videoFile, 
+    lyricsType, 
+    lyricsContent,
+    assignedVisualizer 
+  });
 }
 
 // ── File naming instructions ──────────────────────────────────────────────────
@@ -304,7 +341,7 @@ function generateConfig({ artistName, albumTitle, trackEntries, storeUrl }) {
       const srcLine = entry.isVideo ? "" : `      src: "/tracks/${escStr(entry.audioFile)}",\n`;
       const visualBlock = entry.isVideo
         ? `      visual: {\n        type: "video",\n        src: "${escStr(entry.videoFile)}",\n        loop: false,\n      },`
-        : `      visual: {\n        type: "reactive",\n        scene: "particles",\n      },`;
+        : `      visual: {\n        type: "reactive",\n        scene: "${escStr(entry.assignedVisualizer)}",\n      },`;
       const lyricsBlock = entry.lyricsType
         ? `\n      lyrics: {\n        type: "${entry.lyricsType}",\n        ${entry.lyricsType === "timed" ? "src" : "text"}: "${escStr(entry.lyricsContent)}",\n      },`
         : "";
