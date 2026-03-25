@@ -45,25 +45,29 @@ You'll need:
    npm run setup
    ```
 
-   This will ask you for your artist name, album details, track names, and lyrics. **You can use any filenames for your music files** — the wizard will tell you exactly what to name each file.
+   This will ask you for your artist name, album details, track names, and lyrics. **You can use any filenames for your music files** — the wizard will tell you exactly when to name your song and when to enter in the file name.
 
 4. **Add your music files:**
    - The setup wizard will open your `public/tracks/` folder automatically
    - Copy and paste your MP3 files into it — use the exact filenames you entered during setup
 
 5. **Add lyrics (optional):**
-   - For timed lyrics: The wizard auto-saves `.lrc` files to `public/lyrics/`
-   - For simple lyrics: Just paste your lyrics in the wizard — no files needed
+   _The wizard auto-saves `.lrc` files to `public/lyrics/`. See more about lyrics below in Tips section_
+   - For timed lyrics: Just paste your lyrics in the wizard.
+   - For simple lyrics: Just paste your lyrics in the wizard
 
 6. **Add music videos (optional):**
-   - Place MP4 files in the `public/videos/` folder
-   - Name them exactly as the setup wizard instructed
+   - Tell it that this song is a video
+   - Paste in your YouTube or Vimeo link
 
 7. **Test locally:**
    ```bash
    npm run dev
    ```
    Open http://localhost:3000 to see your visualizer!
+
+_The wizard automatically assigns visualizers to your songs. Videos play your videos._
+_To change the visualizers for your songs, see the section below on Visualizers_
 
 **Made a mistake?** Just run `npm run setup` again — it's safe and will overwrite your config.
 
@@ -105,7 +109,7 @@ Run `npm run setup` again to add tracks or make changes. You'll re-enter all you
 
 ### Music Videos
 
-The setup wizard will ask if each track is a music video. Video tracks don't need separate audio files.
+The setup wizard will ask if each track is a music video. Video tracks don't need separate audio files. Simply paste in your YouTube or Vimeo link.
 
 ### Lyrics
 
@@ -118,7 +122,7 @@ The setup wizard handles everything automatically:
 
 ### Visualizers
 
-Use docs/SceneCreationGuide.md to create stunning visulizers in the LLM of your choice. Gemini Pro or Claude or Grok recommended. Follow docs/Use_New_Visualizer_Inst.md to use your newly created visualizer for a song.
+Use `docs/SceneCreationGuide.md` to create stunning visulizers in the LLM of your choice. Gemini Pro or Claude or Grok recommended. Follow `docs/Use_New_Visualizer_Inst.md` to use your newly created visualizer for a song.
 
 ### Store Link
 
