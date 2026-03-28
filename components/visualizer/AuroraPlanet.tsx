@@ -2,195 +2,249 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, Sphere, Torus, Points, Stars } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import { getThreeBands } from "@/lib/audioAnalysis";
 import { useAudioData } from "@/hooks/useAudioData";
 import { useRef, useMemo } from "react";
 import * as THREE from "three";
 
-function Scene({ audioData }: { audioData: Uint8Array | null }) {
-  const { pointer, scene } = useThree();
-  const planetRef = useRef<THREE.Mesh>(null);
-  const ringsRef = useRef<THREE.Group>(null);
-  const moonRef = useRef<THREE.Mesh>(null);
-  const auroraRef = useRef<THREE.Points>(null);
+const CONFIG = {
+  planet: {
+    rotationSpeed: 0.05,
+    baseColor: "#555558",
+    tilt: [Math.PI * 0.58, 0, 0] as [number, number, number],
+  },
+  audio: {
+    smoothing: 5,
+  }
+};
 
-  // Seeded random for pure, repeatable particle distribution
-  const seededRandom = useMemo(() => {
-    let seed = 987654;
-    return () => {
-      // eslint-disable-next-line react-hooks/immutability
-      seed = (seed * 9301 + 49297) % 233280;
-      return seed / 233280;
-    };
-  }, []);
-
-  // Aurora particle geometry – magnetic layer positions (flattened spherical shell)
-  const auroraGeometry = useMemo(() => {
-    const count = 4800; // well under 12k total particles limit
-    const positions = new Float32Array(count * 3);
-    const colors = new Float32Array(count * 3);
-
-    for (let i = 0; i < count; i++) {
-      const theta = seededRandom() * Math.PI * 2;
-      const phi = Math.acos(2 * seededRandom() - 1);
-      const r = 2.75 + seededRandom() * 0.65; // slightly larger than planet
-
-      positions[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
-      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta) * 0.85; // flattened for aurora-like belt
-      positions[i * 3 + 2] = r * Math.cos(phi);
-
-      // Base deep-space aurora colors (purple/blue/reddish mix)
-      colors[i * 3]     = 0.65;
-      colors[i * 3 + 1] = 0.25;
-      colors[i * 3 + 2] = 0.95;
+const StarFieldShader = {
+  uniforms: {
+    time: { value: 0 },
+    bass: { value: 0 },
+  },
+  vertexShader: `
+    uniform float time;
+    uniform float bass;
+    attribute float size;
+    varying vec3 vColor;
+    varying float vOpacity;
+    
+    float rand(vec2 co){
+      return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
     }
 
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    return geometry;
-  }, [seededRandom]);
+    void main() {
+      vColor = color;
+      float uniqueId = rand(position.xy);
+      float bassActive = step(0.05, bass);
+      float flicker = 0.5 + 0.5 * sin(time * (15.0 + uniqueId * 50.0));
+      vOpacity = mix(0.4, flicker, bassActive * bass);
+      
+      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = size * (300.0 / -mvPosition.z);
+      gl_Position = projectionMatrix * mvPosition;
+    }
+  `,
+  fragmentShader: `
+    varying vec3 vColor;
+    varying float vOpacity;
+    void main() {
+      if (length(gl_PointCoord - vec2(0.5)) > 0.5) discard;
+      gl_FragColor = vec4(vColor, vOpacity);
+    }
+  `
+};
 
-  useFrame((state) => {
+function Scene({ audioData }: { audioData: Uint8Array | null }) {
+  const { scene } = useThree();
+  
+  const systemRef = useRef<THREE.Group>(null);
+  const planetRef = useRef<THREE.Points>(null);
+  const ringsRef = useRef<THREE.Group>(null);
+  const moonRef = useRef<THREE.Points>(null);
+  const auroraRef = useRef<THREE.Points>(null);
+  const starFieldRef = useRef<THREE.Points>(null);
+
+  const smoothBass = useRef(0);
+  const smoothMids = useRef(0);
+  const smoothHighs = useRef(0);
+  const moonPhase = useRef(0);
+
+  const getPoint = (seed: number) => {
+    const s = Math.sin(seed) * 10000;
+    return s - Math.floor(s);
+  };
+
+  const starFieldSetup = useMemo(() => {
+    const count = 12000;
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+    const sizes = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      positions[i * 3] = (getPoint(i * 1.1) - 0.5) * 500;
+      positions[i * 3 + 1] = (getPoint(i * 1.2) - 0.5) * 500;
+      positions[i * 3 + 2] = (getPoint(i * 1.3) - 0.5) * 500;
+      colors[i * 3] = colors[i * 3 + 1] = colors[i * 3 + 2] = 1;
+      sizes[i] = 0.4 + getPoint(i * 1.4) * 1.2;
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    const material = new THREE.ShaderMaterial({
+      uniforms: THREE.UniformsUtils.clone(StarFieldShader.uniforms),
+      vertexShader: StarFieldShader.vertexShader,
+      fragmentShader: StarFieldShader.fragmentShader,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      vertexColors: true,
+      depthWrite: false,
+    });
+    return { geometry, material };
+  }, []);
+
+  const ringsGeometry = useMemo(() => {
+    const geometries: THREE.BufferGeometry[] = [];
+    const ringDefs = [
+      { inner: 2.9, outer: 3.3, count: 25000 },
+      { inner: 3.4, outer: 4.0, count: 40000 },
+      { inner: 4.1, outer: 4.5, count: 15000 },
+    ];
+    ringDefs.forEach((def, idx) => {
+      const pos = new Float32Array(def.count * 3);
+      for (let i = 0; i < def.count; i++) {
+        const id = i + idx * 100000;
+        const angle = getPoint(id) * Math.PI * 2;
+        const radius = def.inner + (getPoint(id + 1) * (def.outer - def.inner));
+        pos[i * 3] = Math.cos(angle) * radius;
+        pos[i * 3 + 1] = (getPoint(id + 2) - 0.5) * 0.12;
+        pos[i * 3 + 2] = Math.sin(angle) * radius;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geometries.push(geo);
+    });
+    return geometries;
+  }, []);
+
+  const auroraGeometry = useMemo(() => {
+    const count = 6000;
+    const pos = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      const theta = getPoint(i * 2.1) * Math.PI * 2;
+      const phi = Math.acos(2 * getPoint(i * 2.2) - 1);
+      const r = 2.2 + getPoint(i * 2.3) * 0.8;
+      pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta) * 0.55; 
+      pos[i * 3 + 2] = r * Math.cos(phi);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    return geometry;
+  }, []);
+
+  useFrame((state, delta) => {
     const time = state.clock.getElapsedTime();
     const { bass, mids, highs } = getThreeBands(audioData);
 
-    // Planet – slow meditative spin (always alive)
+    smoothBass.current = THREE.MathUtils.lerp(smoothBass.current, bass, delta * CONFIG.audio.smoothing);
+    smoothMids.current = THREE.MathUtils.lerp(smoothMids.current, mids, delta * CONFIG.audio.smoothing);
+    smoothHighs.current = THREE.MathUtils.lerp(smoothHighs.current, highs, delta * CONFIG.audio.smoothing);
+
+    if (starFieldRef.current) {
+      const mat = starFieldRef.current.material as THREE.ShaderMaterial;
+      mat.uniforms.time.value = time;
+      mat.uniforms.bass.value = smoothBass.current;
+    }
+
+    if (systemRef.current) {
+      systemRef.current.rotation.y = time * CONFIG.planet.rotationSpeed;
+    }
+
+    if (ringsRef.current) {
+      ringsRef.current.rotation.y += delta * (0.1 + smoothHighs.current * 1.8);
+    }
+
     if (planetRef.current) {
-      planetRef.current.rotation.y = time * 0.04;
+      (planetRef.current.material as THREE.PointsMaterial).size = 0.01 + smoothBass.current * 0.015;
     }
 
-    // Aurora magnetic layer – BASS controls expansion + color shift
     if (auroraRef.current) {
-      const scale = 1.0 + bass * 0.55;
-      auroraRef.current.scale.setScalar(scale);
-
-      // Hue shift: deep purple → vibrant magenta/reddish on bass hits
-      const material = auroraRef.current.material as THREE.PointsMaterial;
-      const hue = 0.72 - bass * 0.35;
-      material.color.setHSL(hue, 0.85, 0.75);
+      const auroraMat = auroraRef.current.material as THREE.PointsMaterial;
+      auroraMat.color.setHSL((time * 0.04 + smoothMids.current * 0.5) % 1, 0.9, 0.5);
+      auroraRef.current.scale.setScalar(1.0 + smoothBass.current * 0.5);
     }
 
-    // Rings – HIGHS control rotation speed (distinct from bass)
-    if (ringsRef.current) {
-      const rotationSpeed = 0.15 + highs * 1.1;
-      ringsRef.current.rotation.z = time * rotationSpeed;
-    }
-
-    // Lonely moon orbit – HIGHS accelerate orbit speed
     if (moonRef.current) {
-      const orbitSpeed = 0.35 + highs * 1.4;
-      const distance = 4.8;
-      moonRef.current.position.x = Math.cos(time * orbitSpeed) * distance;
-      moonRef.current.position.z = Math.sin(time * orbitSpeed) * distance * 0.7;
-      moonRef.current.position.y = Math.sin(time * orbitSpeed * 0.6) * 1.1;
+      moonPhase.current += delta * (0.4 + smoothHighs.current * 2.5);
+      const moonDist = 6.0;
+      moonRef.current.position.set(
+        Math.cos(moonPhase.current) * moonDist,
+        Math.sin(moonPhase.current * 0.3) * 1.5,
+        Math.sin(moonPhase.current) * moonDist * 0.7
+      );
+      (moonRef.current.material as THREE.PointsMaterial).color.setHSL(smoothHighs.current * 0.45, 0.8, 0.6);
     }
 
-    // Mids control fog color (rings/fog/starfield atmosphere – no conflict)
-    if (scene.fog) {
-      const fogHue = 0.75 + mids * 0.15; // purple-blue → slight reddish tint
-      (scene.fog as THREE.Fog).color.setHSL(fogHue, 0.6, 0.12);
-    }
-
-    // Gentle mouse/touch responsiveness – subtle ring tilt
-    if (ringsRef.current) {
-      ringsRef.current.rotation.x = pointer.y * 0.08;
-    }
+    if (scene.fog) (scene.fog as THREE.Fog).color.setHSL((0.65 + smoothBass.current * 0.05) % 1, 0.4, 0.02);
   });
 
   return (
     <>
-      {/* Deep-space lighting */}
-      <ambientLight intensity={0.35} color="#443366" />
-      <pointLight position={[15, 8, 10]} intensity={1.2} color="#a0b0ff" />
+      <ambientLight intensity={0.05} />
+      <pointLight position={[10, 10, 10]} intensity={2} color="#ffffff" />
+      
+      <points ref={starFieldRef} geometry={starFieldSetup.geometry} material={starFieldSetup.material} />
 
-      {/* Starfield – meditative background */}
-      <Stars
-        radius={120}
-        depth={70}
-        count={8500}
-        factor={3.5}
-        saturation={0.2}
-        fade={true}
-      />
-
-      {/* Central planet (sphere) */}
-      <Sphere ref={planetRef} args={[1.75, 72, 72]}>
-        <meshPhongMaterial
-          color="#1e2b4f"
-          emissive="#0f1e3a"
-          shininess={8}
-          specular="#445577"
-        />
-      </Sphere>
-
-      {/* Flowing colorful magnetic aurora layer (Points – bass reactive) */}
-      <Points ref={auroraRef} geometry={auroraGeometry}>
-        <pointsMaterial
-          size={0.038}
-          vertexColors
-          transparent
-          opacity={0.82}
-          blending={THREE.AdditiveBlending}
-          sizeAttenuation={true}
-          depthTest={false}
-        />
-      </Points>
-
-      {/* Rings group – surrounding the planet */}
-      <group ref={ringsRef}>
-        {/* Inner ring */}
-        <Torus args={[2.9, 0.065, 3, 96]} rotation={[Math.PI * 0.58, 0, 0]}>
-          <meshPhongMaterial
-            color="#9c6cff"
-            emissive="#4a2a88"
-            shininess={30}
-            side={THREE.DoubleSide}
+      <group ref={systemRef} rotation={CONFIG.planet.tilt}>
+        {/* Planet: Solid depth mask */}
+        <points ref={planetRef} renderOrder={1}>
+          <sphereGeometry args={[1.9, 72, 72]} />
+          <pointsMaterial 
+            color={CONFIG.planet.baseColor} 
+            size={0.01} 
+            transparent 
+            opacity={0.8} 
+            blending={THREE.AdditiveBlending} 
+            depthWrite={true} 
+            depthTest={true}
           />
-        </Torus>
-        {/* Middle ring */}
-        <Torus args={[3.45, 0.045, 3, 112]} rotation={[Math.PI * 0.52, 0, 0]}>
-          <meshPhongMaterial
-            color="#c07eff"
-            emissive="#5c3a99"
-            shininess={20}
-            side={THREE.DoubleSide}
-          />
-        </Torus>
-        {/* Outer faint ring */}
-        <Torus args={[4.05, 0.03, 3, 128]} rotation={[Math.PI * 0.65, 0, 0]}>
-          <meshPhongMaterial
-            color="#b080ff"
-            emissive="#3f1f77"
-            shininess={15}
-            side={THREE.DoubleSide}
-            transparent
-            opacity={0.75}
-          />
-        </Torus>
+        </points>
+
+        <points ref={auroraRef} geometry={auroraGeometry} renderOrder={0}>
+          <pointsMaterial size={0.05} transparent opacity={0.3} blending={THREE.AdditiveBlending} depthWrite={false} />
+        </points>
+
+        {/* Rings: renderOrder higher than planet, depthTest true, depthWrite false */}
+        <group ref={ringsRef} renderOrder={10}>
+          <points geometry={ringsGeometry[0]}>
+            <pointsMaterial color="#5599ff" size={0.007} transparent opacity={0.6} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={true} />
+          </points>
+          <points geometry={ringsGeometry[1]}>
+            <pointsMaterial color="#3377dd" size={0.006} transparent opacity={0.4} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={true} />
+          </points>
+          <points geometry={ringsGeometry[2]}>
+            <pointsMaterial color="#1144bb" size={0.005} transparent opacity={0.2} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={true} />
+          </points>
+        </group>
       </group>
 
-      {/* Lonely moon circling the planet */}
-      <Sphere ref={moonRef} args={[0.32, 36, 36]}>
-        <meshPhongMaterial
-          color="#e8e8f0"
-          emissive="#445566"
-          shininess={12}
-        />
-      </Sphere>
+      <points ref={moonRef}>
+        <sphereGeometry args={[0.2, 24, 24]} />
+        <pointsMaterial size={0.015} transparent opacity={1} depthWrite={false} />
+      </points>
 
-      {/* Deep-space fog for atmosphere and occasional mist feel */}
-      <fog attach="fog" args={["#0c0b1f", 18, 95]} />
-
-      {/* Interactive camera controls */}
-      <OrbitControls
-        enablePan={true}
-        enableZoom={true}
-        enableRotate={true}
-        minDistance={5}
-        maxDistance={28}
-        target={[0, 0.6, 0]}
+      <fog attach="fog" args={["#000002", 20, 100]} />
+      
+      <OrbitControls 
+        autoRotate={true}
+        autoRotateSpeed={0.5}
+        enablePan={false} 
+        minDistance={8} 
+        maxDistance={40} 
+        makeDefault 
       />
     </>
   );
@@ -198,20 +252,16 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
 
 export default function AuroraPlanet() {
   const audioData = useAudioData();
-
   return (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        zIndex: 0,
-        background: "#05040f",
-        overflow: "hidden",
-      }}
-    >
-      <Canvas
-        camera={{ position: [0, 2.5, 8.2], fov: 55 }}
-        gl={{ antialias: true, alpha: false }}
+    <div style={{ position: "absolute", inset: 0, background: "#000", overflow: "hidden" }}>
+      <Canvas 
+        // logarithmicDepthBuffer=true solves the "slipping" overlap issue
+        camera={{ position: [5, 10, 10], fov: 35 }} 
+        gl={{ 
+            antialias: true, 
+            powerPreference: "high-performance",
+            logarithmicDepthBuffer: true 
+        }}
       >
         <Scene audioData={audioData} />
       </Canvas>
