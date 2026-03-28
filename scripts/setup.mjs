@@ -151,10 +151,11 @@ const VISUALIZER_SEQUENCE = [
   "particles",   // Track 1
   "mandala",     // Track 2  
   "flower",      // Track 3
-  "sloworbit",   // Track 4
-  "tesseract",   // Track 5
-  "pillar",      // Track 6
-  "animal"       // Track 7
+  "auroraplanet", // Track 4
+  "sloworbit",   // Track 5
+  "tesseract",   // Track 6
+  "pillar",      // Track 7
+  "animal"       // Track 8
 ];
 
 header("Visualizer Assignment");
