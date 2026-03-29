@@ -1,7 +1,7 @@
 "use no memo";
 "use client";
 
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { getThreeBands } from "@/lib/audioAnalysis";
 import { useAudioData } from "@/hooks/useAudioData";
@@ -16,6 +16,12 @@ const CONFIG = {
   },
   audio: {
     smoothing: 5,
+  },
+  effects: {
+    strobeWindow: 30, 
+    strobeDuration: 3, 
+    strobeThreshold: 0.85, 
+    strobeColor: "#ff007f", 
   }
 };
 
@@ -38,9 +44,8 @@ const StarFieldShader = {
     void main() {
       vColor = color;
       float uniqueId = rand(position.xy);
-      float bassActive = step(0.05, bass);
       float flicker = 0.5 + 0.5 * sin(time * (15.0 + uniqueId * 50.0));
-      vOpacity = mix(0.4, flicker, bassActive * bass);
+      vOpacity = mix(0.4, flicker, step(0.05, bass) * bass);
       
       vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
       gl_PointSize = size * (300.0 / -mvPosition.z);
@@ -57,15 +62,16 @@ const StarFieldShader = {
   `
 };
 
+const colorBlack = new THREE.Color("#000000");
+
 function Scene({ audioData }: { audioData: Uint8Array | null }) {
-  const { scene } = useThree();
-  
   const systemRef = useRef<THREE.Group>(null);
   const planetRef = useRef<THREE.Points>(null);
   const ringsRef = useRef<THREE.Group>(null);
   const moonRef = useRef<THREE.Points>(null);
   const auroraRef = useRef<THREE.Points>(null);
   const starFieldRef = useRef<THREE.Points>(null);
+  const bgRef = useRef<THREE.Color>(null);
 
   const smoothBass = useRef(0);
   const smoothMids = useRef(0);
@@ -93,16 +99,18 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-    const material = new THREE.ShaderMaterial({
-      uniforms: THREE.UniformsUtils.clone(StarFieldShader.uniforms),
-      vertexShader: StarFieldShader.vertexShader,
-      fragmentShader: StarFieldShader.fragmentShader,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      vertexColors: true,
-      depthWrite: false,
-    });
-    return { geometry, material };
+    return { 
+      geometry, 
+      material: new THREE.ShaderMaterial({
+        uniforms: THREE.UniformsUtils.clone(StarFieldShader.uniforms),
+        vertexShader: StarFieldShader.vertexShader,
+        fragmentShader: StarFieldShader.fragmentShader,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        vertexColors: true,
+        depthWrite: false,
+      }) 
+    };
   }, []);
 
   const ringsGeometry = useMemo(() => {
@@ -145,13 +153,31 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
     return geometry;
   }, []);
 
+  // 1. Create a persistent ref outside useFrame to track the strobe's "energy"
+  const strobeIntensity = useRef(0);
+
   useFrame((state, delta) => {
     const time = state.clock.getElapsedTime();
-    const { bass, mids, highs } = getThreeBands(audioData);
+    const { bass } = getThreeBands(audioData);
 
-    smoothBass.current = THREE.MathUtils.lerp(smoothBass.current, bass, delta * CONFIG.audio.smoothing);
-    smoothMids.current = THREE.MathUtils.lerp(smoothMids.current, mids, delta * CONFIG.audio.smoothing);
-    smoothHighs.current = THREE.MathUtils.lerp(smoothHighs.current, highs, delta * CONFIG.audio.smoothing);
+    // --- SNAP-ACTION STROBE (One Color At A Time) ---
+    if (bgRef.current) {
+      const isStrobeWindow = (time % CONFIG.effects.strobeWindow) < CONFIG.effects.strobeDuration;
+      
+      // We keep your preferred flicker rate
+      const flickerRate = 0.135; 
+      const isFlickerOn = (time % flickerRate) < (flickerRate / 2);
+
+      // TRIGGER: If we are in the window, the beat is hitting, and the flicker is "On"
+      if (isStrobeWindow && bass > CONFIG.effects.strobeThreshold && isFlickerOn) {
+        // INSTANT SNAP to Pink
+        bgRef.current.set(CONFIG.effects.strobeColor);
+      } else {
+        // INSTANT SNAP to Black
+        // No lerp. No "energy tank." No muddy colors.
+        bgRef.current.set("#000000");
+      }
+    }
 
     if (starFieldRef.current) {
       const mat = starFieldRef.current.material as THREE.ShaderMaterial;
@@ -173,8 +199,8 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
 
     if (auroraRef.current) {
       const auroraMat = auroraRef.current.material as THREE.PointsMaterial;
-      auroraMat.color.setHSL((time * 0.04 + smoothMids.current * 0.5) % 1, 0.9, 0.5);
-      auroraRef.current.scale.setScalar(1.0 + smoothBass.current * 0.5);
+      auroraMat.color.setHSL((time * 0.02 + smoothMids.current * 0.2) % 1, 0.9, 0.5);
+      auroraRef.current.scale.setScalar(1.2 + Math.sin(time * 0.5) * 0.05 + smoothBass.current * 0.15);
     }
 
     if (moonRef.current) {
@@ -187,47 +213,31 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       );
       (moonRef.current.material as THREE.PointsMaterial).color.setHSL(smoothHighs.current * 0.45, 0.8, 0.6);
     }
-
-    if (scene.fog) (scene.fog as THREE.Fog).color.setHSL((0.65 + smoothBass.current * 0.05) % 1, 0.4, 0.02);
   });
 
   return (
     <>
+      <color ref={bgRef} attach="background" args={["#000000"]} />
+
       <ambientLight intensity={0.05} />
       <pointLight position={[10, 10, 10]} intensity={2} color="#ffffff" />
       
       <points ref={starFieldRef} geometry={starFieldSetup.geometry} material={starFieldSetup.material} />
 
       <group ref={systemRef} rotation={CONFIG.planet.tilt}>
-        {/* Planet: Solid depth mask */}
         <points ref={planetRef} renderOrder={1}>
           <sphereGeometry args={[1.9, 72, 72]} />
-          <pointsMaterial 
-            color={CONFIG.planet.baseColor} 
-            size={0.01} 
-            transparent 
-            opacity={0.8} 
-            blending={THREE.AdditiveBlending} 
-            depthWrite={true} 
-            depthTest={true}
-          />
+          <pointsMaterial color={CONFIG.planet.baseColor} size={0.01} transparent opacity={0.8} blending={THREE.AdditiveBlending} depthWrite={true} depthTest={true} />
         </points>
 
         <points ref={auroraRef} geometry={auroraGeometry} renderOrder={0}>
           <pointsMaterial size={0.05} transparent opacity={0.3} blending={THREE.AdditiveBlending} depthWrite={false} />
         </points>
 
-        {/* Rings: renderOrder higher than planet, depthTest true, depthWrite false */}
         <group ref={ringsRef} renderOrder={10}>
-          <points geometry={ringsGeometry[0]}>
-            <pointsMaterial color="#5599ff" size={0.007} transparent opacity={0.6} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={true} />
-          </points>
-          <points geometry={ringsGeometry[1]}>
-            <pointsMaterial color="#3377dd" size={0.006} transparent opacity={0.4} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={true} />
-          </points>
-          <points geometry={ringsGeometry[2]}>
-            <pointsMaterial color="#1144bb" size={0.005} transparent opacity={0.2} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={true} />
-          </points>
+          <points geometry={ringsGeometry[0]}><pointsMaterial color="#5599ff" size={0.007} transparent opacity={0.6} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={true}/></points>
+          <points geometry={ringsGeometry[1]}><pointsMaterial color="#3377dd" size={0.006} transparent opacity={0.4} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={true}/></points>
+          <points geometry={ringsGeometry[2]}><pointsMaterial color="#1144bb" size={0.005} transparent opacity={0.2} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={true}/></points>
         </group>
       </group>
 
@@ -235,8 +245,6 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
         <sphereGeometry args={[0.2, 24, 24]} />
         <pointsMaterial size={0.015} transparent opacity={1} depthWrite={false} />
       </points>
-
-      <fog attach="fog" args={["#000002", 20, 100]} />
       
       <OrbitControls 
         autoRotate={true}
@@ -254,15 +262,7 @@ export default function AuroraPlanet() {
   const audioData = useAudioData();
   return (
     <div style={{ position: "absolute", inset: 0, background: "#000", overflow: "hidden" }}>
-      <Canvas 
-        // logarithmicDepthBuffer=true solves the "slipping" overlap issue
-        camera={{ position: [5, 10, 10], fov: 35 }} 
-        gl={{ 
-            antialias: true, 
-            powerPreference: "high-performance",
-            logarithmicDepthBuffer: true 
-        }}
-      >
+      <Canvas camera={{ position: [5, 10, 10], fov: 35 }} gl={{ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true }}>
         <Scene audioData={audioData} />
       </Canvas>
     </div>
