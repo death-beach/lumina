@@ -153,32 +153,49 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
     return geometry;
   }, []);
 
-  // 1. Create a persistent ref outside useFrame to track the strobe's "energy"
-  const strobeIntensity = useRef(0);
+  const strobeTimer = useRef(0);
 
   useFrame((state, delta) => {
     const time = state.clock.getElapsedTime();
-    const { bass } = getThreeBands(audioData);
+    
+    // 1. Extract the frequencies
+    const { bass, mids, highs } = getThreeBands(audioData);
 
-    // --- SNAP-ACTION STROBE (One Color At A Time) ---
+    // 2. Interpolate the values (The missing link)
+    smoothBass.current = THREE.MathUtils.lerp(smoothBass.current, bass, delta * CONFIG.audio.smoothing);
+    smoothMids.current = THREE.MathUtils.lerp(smoothMids.current, mids, delta * CONFIG.audio.smoothing);
+    smoothHighs.current = THREE.MathUtils.lerp(smoothHighs.current, highs, delta * CONFIG.audio.smoothing);
+
+    // --- SNAP-ACTION STROBE ---
     if (bgRef.current) {
       const isStrobeWindow = (time % CONFIG.effects.strobeWindow) < CONFIG.effects.strobeDuration;
-      
-      // We keep your preferred flicker rate
-      const flickerRate = 0.135; 
-      const isFlickerOn = (time % flickerRate) < (flickerRate / 2);
 
-      // TRIGGER: If we are in the window, the beat is hitting, and the flicker is "On"
-      if (isStrobeWindow && bass > CONFIG.effects.strobeThreshold && isFlickerOn) {
-        // INSTANT SNAP to Pink
-        bgRef.current.set(CONFIG.effects.strobeColor);
-      } else {
-        // INSTANT SNAP to Black
-        // No lerp. No "energy tank." No muddy colors.
+      if (isStrobeWindow) {
+        // Isolate the trigger: Only fire if bass peaks AND we aren't currently locked in a flash or blackout
+        if (bass > CONFIG.effects.strobeThreshold && strobeTimer.current === 0) {
+          // Lock the duration: Force the pink flash for exactly 50ms
+          strobeTimer.current = 0.05; 
+          bgRef.current.set(CONFIG.effects.strobeColor);
+        }
+      }
+
+      // Handle the strict timekeeping
+      if (strobeTimer.current > 0) {
+        strobeTimer.current -= delta;
+        // Enforce the blackout: Once the flash ends, snap to black and force a 50ms cooldown
+        if (strobeTimer.current <= 0) {
+          bgRef.current.set("#000000");
+          strobeTimer.current = -0.05; 
+        }
+      } else if (strobeTimer.current < 0) {
+        // Count up the cooldown timer until it hits 0, resetting the system
+        strobeTimer.current = Math.min(0, strobeTimer.current + delta);
+      } else if (!isStrobeWindow && bgRef.current.getHexString() !== "000000") {
+        // Failsafe: Ensure we are black when the strobe window closes
         bgRef.current.set("#000000");
       }
     }
-
+    
     if (starFieldRef.current) {
       const mat = starFieldRef.current.material as THREE.ShaderMaterial;
       mat.uniforms.time.value = time;

@@ -196,6 +196,50 @@ const mandalaFragmentShader = `
     gl_FragColor = vec4(finalColor, 0.7);
   }
 `;
+
+function CameraRig() {
+  // --- CONTROLS ---
+  const homePos = new THREE.Vector3(-1, 1.7, 20);
+  const radius = 11.5;       // <--- INCREASE THIS for a bigger circle
+  const driftSpeed = 1.0;   // How fast it completes the circle
+  const startDelay = 17;    // Your intro zoom buffer
+  const moveDuration = 7.5;   // 5 seconds of movement
+  const totalCycle = 30;    // 30 second loop
+
+  useFrame((state) => {
+    const t = state.clock.elapsedTime;
+    if (t < startDelay) return;
+
+    const cycleTime = (t - startDelay) % totalCycle;
+
+    // 1. CREATE A SMOOTH ENVELOPE (0 to 1 and back to 0)
+    // This prevents the "hard cut" at the start and end of the 5s.
+    let alpha = 0;
+    if (cycleTime < moveDuration) {
+      // Use a sine wave to create a smooth ramp up and ramp down
+      // cycleTime / moveDuration goes 0 -> 1 over 5 seconds
+      alpha = Math.sin((cycleTime / moveDuration) * Math.PI); 
+    }
+
+    // 2. CALCULATE THE CIRCLE
+    // We use a constant angle, but multiply the result by our "alpha" fader.
+    const angle = t * driftSpeed;
+    const offX = Math.cos(angle) * radius * alpha;
+    const offY = Math.sin(angle) * radius * alpha;
+
+    // 3. APPLY TO CAMERA
+    // When alpha is 0, this is exactly homePos. 
+    // As alpha grows, it pushes the camera into the circle smoothly.
+    state.camera.position.x = homePos.x + offX;
+    state.camera.position.y = homePos.y + offY;
+    state.camera.position.z = homePos.z;
+
+    state.camera.lookAt(0, 0, 0);
+  });
+
+  return null;
+} 
+
 function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
   const groupRef = useRef<THREE.Group>(null);
   const mainMatRef = useRef<THREE.ShaderMaterial>(null);
@@ -443,12 +487,18 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
 
 export default function Mandala() {
   const audioData = useAudioData();
+
   return (
     <div style={{ position: "absolute", inset: 0, background: "#010103" }}>
       <Canvas camera={{ position: [-1, 1.7, 20], fov: 45 }}>
+        {/* The Rig must be inside the Canvas to access the camera */}
+        <CameraRig />
+        
         <LuminousHaze audioData={audioData} />
         <BackgroundParticles />
         <SacredMandala audioData={audioData} />
+        
+        {/* Keep OrbitControls for manual adjustment when not rotating */}
         <OrbitControls enablePan={false} maxDistance={50} minDistance={10} />
       </Canvas>
     </div>

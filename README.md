@@ -85,21 +85,30 @@ _To change the visualizers for your songs, see the section below on Visualizers_
    - Go to [vercel.com](https://vercel.com)
    - Click "Import Project"
    - Connect your GitHub repository
-   - Deploy!
+   - Deploy! (_choose step 3 or 4!_)
 
-3. **Add a custom domain (optional):**
-   - In Vercel dashboard, go to your project settings
-   - Add your domain under "Domains"
+3. **Add a custom domain** (e.g. `yoursite.com`):
+   - In Vercel → Project → **Settings** → **Domains**
+   - Select **Add Domain**, type `yoursite.com` and check "Redirect `yoursite.com` to `www.yoursite.com`
+     - **Connect to an Environment** selected (Production).
+   - In your regular domain (no prefix) select Redirect as 301
+   - Go to your domain registrar (Wix, GoDaddy, Namecheap, etc.) → DNS settings
+   - Add **A Record**: Host Name: `@` | Value: **paste the exact IP address Vercel gives you**
+   - Add **CNAME Record**: Host Name: `www` | Value: `cname.vercel-dns.com`
+   - Save
 
-4. **Set up a subdomain (optional):**
-   > Perfect for hosting your Lumina player at something like `album.yourname.com` or `music.yoursite.com`.
-   - In your domain registrar (GoDaddy, Namecheap, Squarespace, etc.), go to your DNS settings
-   - Add a **CNAME record** with:
-     - **Name/Host:** `album` (or whatever prefix you want)
-     - **Value/Target:** `cname.vercel-dns.com`
-   - Back in Vercel, go to your project → Settings → Domains → Add Domain
-   - Enter `album.yoursite.com` — Vercel will verify the CNAME and activate it
-   - DNS changes can take a few minutes to a few hours to propagate
+4. **OR Connect as Subdomain** (e.g. `album.yoursite.com`):
+   - In Vercel → Project → **Settings** → **Domains** → **Add Domain**
+   - Enter `album.yoursite.com` → Add
+   - Copy the CNAME value Vercel shows you
+   - Go to your domain registrar → DNS settings → **Add Record**
+   - Type: **CNAME**
+   - Host Name: `album`
+   - Value: paste the exact value from Vercel
+   - Save
+
+5. **Wait for verification:**
+   - Back in Vercel Domains, wait until it says “Valid Configuration” (usually 5–60 min)
 
 ## Tips & Features
 
