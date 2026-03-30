@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Howl } from "howler";
+import { Howl, Howler } from "howler";
 import { usePlayerStore } from "@/store/playerStore";
 
 interface UseAudioReturn {
@@ -20,152 +20,196 @@ export function useAudio(src: string): UseAudioReturn {
   const howlRef = useRef<Howl | null>(null);
   // Single slot for end callback — replaces rather than stacking listeners
   const endCallbackRef = useRef<(() => void) | null>(null);
+
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
-  const retryCountRef = useRef(0);
-  const maxRetries = 3;
-  const isSeekingRef = useRef(false);
-  const fallbackModeRef = useRef(false);
+
+  // Generation counter: incremented on every src change so stale async
+  // callbacks (retries, onload from an old track) can detect they're obsolete
+  // and bail out without touching the current howlRef.
+  const generationRef = useRef(0);
+
+  // Ensures we only wire the AnalyserNode tap once across the lifetime of
+  // the hook — Howler.masterGain is a persistent node and we only need one
+  // analyser connected to it.
+  const analyserConnectedRef = useRef(false);
+  const analyserNodeRef = useRef<AnalyserNode | null>(null);
+
+  const rafRef = useRef<number | null>(null);
 
   const { volume, isMuted, setProgress, setAudioContext, setAnalyserNode: setStoreAnalyser } = usePlayerStore();
 
-  // Helper function to check if Web Audio API is ready
-  const isWebAudioReady = (): boolean => {
-    try {
-      if (typeof window === 'undefined') return false;
-      if (!window.AudioContext && !(window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext) return false;
-      
-      const AudioContextType: typeof AudioContext = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const ctx = new AudioContextType();
-      
-      // Check if context is suspended and try to resume
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
-      
-      return ctx.state === 'running';
-    } catch (err) {
-      console.warn('Web Audio API not available:', err);
-      return false;
-    }
-  };
+  // ─── Analyser Setup ────────────────────────────────────────────────────────
+  // Called once after the first successful load, when Howler.ctx exists.
+  const ensureAnalyser = useCallback(() => {
+    if (analyserConnectedRef.current) return; // already done
 
-  // Helper function to create Howl instance with retry logic
-  const createHowlWithRetry = (source: string, retryCount: number = 0): Howl => {
+    try {
+      const ctx = Howler.ctx as AudioContext | null;
+      if (!ctx) return;
+
+      // Resume the context if it was suspended by the browser autoplay policy
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => undefined);
+      }
+
+      setAudioContext(ctx);
+
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512; // 256 frequency bins
+      analyser.smoothingTimeConstant = 0.7;
+
+      // Connect through Howler's master gain (this is the original working approach)
+      if (Howler.masterGain) {
+        // Disconnect any previous connections to avoid duplicate analysers
+        try {
+          Howler.masterGain.disconnect();
+        } catch {
+          // Ignore if not connected
+        }
+        Howler.masterGain.connect(analyser);
+        analyser.connect(ctx.destination);
+      }
+
+      analyserConnectedRef.current = true;
+      analyserNodeRef.current = analyser;
+      setAnalyserNode(analyser);
+      setStoreAnalyser(analyser);
+    } catch (err) {
+      console.warn("Web Audio API analyser setup failed:", err);
+    }
+  }, [setAudioContext, setStoreAnalyser]);
+
+  // ─── Progress Polling ──────────────────────────────────────────────────────
+  const startProgressPoll = useCallback((howl: Howl) => {
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+
+    const poll = () => {
+      if (!howl.playing()) return; // stop when paused / ended
+      const time = howl.seek() as number;
+      setCurrentTime(time);
+      setProgress(time / howl.duration());
+      rafRef.current = requestAnimationFrame(poll);
+    };
+
+    rafRef.current = requestAnimationFrame(poll);
+  }, [setProgress]);
+
+  // ─── Track Loading ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!src) return;
+
+    // Invalidate any in-flight callbacks from the previous track
+    const gen = ++generationRef.current;
+
+    // Stop any running progress poll
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+
+    // CRITICAL: Clean teardown of previous Howl
+    // .off() MUST come BEFORE .unload() to prevent "Decoding audio data failed"
+    // errors when skipping tracks mid-decode.
+    if (howlRef.current) {
+      howlRef.current.off(); // remove ALL event listeners first
+      howlRef.current.unload(); // then unload (this may trigger decode cancellation)
+      howlRef.current = null;
+    }
+
+    // Reset per-track state
+    setError(null);
+    setIsLoaded(false);
+    setDuration(0);
+    setCurrentTime(0);
+
+    // ── Build the new Howl ──────────────────────────────────────────────────
+    // html5: false (Web Audio API mode) is REQUIRED for analyser reactivity
+    // This was the original working configuration.
     const howl = new Howl({
-      src: [source],
-      format: ['wav', 'mp3', 'ogg'], // Explicitly support WAV
-      html5: false, // Use Web Audio API
+      src: [src],
+      html5: false,          // ← restored for reactivity (critical)
+      format: ["mp3", "wav", "ogg", "aac"],
       volume: isMuted ? 0 : volume,
+
       onload: () => {
+        // Bail if the user has already skipped to a different track
+        if (generationRef.current !== gen) return;
+
         setDuration(howl.duration());
         setIsLoaded(true);
-        retryCountRef.current = 0; // Reset retry count on success
+        setError(null);
 
-        // Set up Web Audio API analyser using Howler's public APIs
-        try {
-          // Use Howler's shared Web Audio context and master gain
-          const ctx = Howler.ctx;
-          if (ctx && ctx.state === 'suspended') {
-            ctx.resume(); // Resume if suspended (required for autoplay policies)
-          }
-
-          if (ctx) {
-            setAudioContext(ctx);
-
-            // Create analyser node
-            const analyser = ctx.createAnalyser();
-            analyser.fftSize = 512; // 256 bins
-            analyser.smoothingTimeConstant = 0.7;
-
-            // Connect to Howler's master gain node (all sounds route through this)
-            if (Howler.masterGain) {
-              Howler.masterGain.connect(analyser);
-              // AnalyserNode is just a tap - no need to connect to destination
-              setAnalyserNode(analyser);
-              setStoreAnalyser(analyser);
-            }
-          }
-        } catch (err) {
-          console.warn("Web Audio API setup failed:", err);
-        }
+        // Wire up the analyser the first time we have a live AudioContext
+        ensureAnalyser();
       },
-      onloaderror: (id, err) => {
-        console.error(`Audio load error (attempt ${retryCount + 1}/${maxRetries + 1}):`, err);
-        
-        if (retryCount < maxRetries && isWebAudioReady()) {
-          console.log(`Retrying audio load in 500ms...`);
-          setTimeout(() => {
-            retryCountRef.current = retryCount + 1;
-            // Clean up current instance and retry
-            howl.unload();
-            const newHowl = createHowlWithRetry(source, retryCount + 1);
-            howlRef.current = newHowl;
-          }, 500);
-        } else {
-          setError(`Failed to load audio after ${retryCount + 1} attempts: ${err}`);
-        }
+
+      onloaderror: (_id, err) => {
+        // Bail if this callback is stale (user skipped before this loaded)
+        if (generationRef.current !== gen) return;
+
+        console.error("Audio load error:", err);
+        setError(`Failed to load audio: ${err}`);
       },
+
       onplay: () => {
-        // Start progress polling
-        const pollProgress = () => {
-          if (howl.playing()) {
-            const time = howl.seek() as number;
-            setCurrentTime(time);
-            setProgress(time / howl.duration());
-            requestAnimationFrame(pollProgress);
-          }
-        };
-        pollProgress();
+        if (generationRef.current !== gen) return;
+        startProgressPoll(howl);
       },
+
+      onpause: () => {
+        if (rafRef.current !== null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+      },
+
+      onstop: () => {
+        if (rafRef.current !== null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+      },
+
       onend: () => {
-        // Fire the single registered end callback (if any)
+        if (generationRef.current !== gen) return;
+        if (rafRef.current !== null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
         endCallbackRef.current?.();
       },
     });
 
-    return howl;
-  };
-
-  // Initialize Howler instance
-  useEffect(() => {
-    if (!src) return;
-
-    // Clean up previous instance
-    if (howlRef.current) {
-      howlRef.current.unload();
-    }
-
-    // Reset state
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    setError(null);
-    setIsLoaded(false);
-    setAnalyserNode(null);
-    setStoreAnalyser(null);
-
-    // Create Howl instance with retry logic
-    const newHowl = createHowlWithRetry(src, 0);
-    howlRef.current = newHowl;
+    howlRef.current = howl;
 
     return () => {
-      if (howlRef.current) {
-        howlRef.current.unload();
+      // Cancel the RAF if the effect is re-running or unmounting
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
-      setAnalyserNode(null);
-      setStoreAnalyser(null);
+      // Invalidate this generation so any pending callbacks are ignored
+      generationRef.current++;
+
+      if (howlRef.current) {
+        howlRef.current.off();
+        howlRef.current.unload();
+        howlRef.current = null;
+      }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
 
-  // Update volume when store changes
+  // ─── Volume sync ───────────────────────────────────────────────────────────
   useEffect(() => {
-    if (howlRef.current) {
-      howlRef.current.volume(isMuted ? 0 : volume);
-    }
+    howlRef.current?.volume(isMuted ? 0 : volume);
   }, [volume, isMuted]);
 
+  // ─── Playback controls ─────────────────────────────────────────────────────
   const play = useCallback(() => {
     if (howlRef.current && isLoaded) {
       howlRef.current.play();
@@ -173,86 +217,50 @@ export function useAudio(src: string): UseAudioReturn {
   }, [isLoaded]);
 
   const pause = useCallback(() => {
-    if (howlRef.current) {
-      howlRef.current.pause();
-    }
+    howlRef.current?.pause();
   }, []);
 
-  const seek = useCallback(async (time: number): Promise<boolean> => {
-    if (!howlRef.current || !isLoaded) {
-      return false;
-    }
-
-    // Prevent concurrent seeking operations
-    if (isSeekingRef.current) {
-      console.warn('Audio seek already in progress, skipping');
-      return false;
-    }
-
-    isSeekingRef.current = true;
-    
-    try {
-      // Try Web Audio API seeking first
-      const howl = howlRef.current;
-      howl.seek(time);
+  const seek = useCallback(
+    (time: number) => {
+      if (!howlRef.current || !isLoaded) return;
+      howlRef.current.seek(time);
       setCurrentTime(time);
-      setProgress(time / duration);
-
-      // Wait a brief moment to ensure the seek completed successfully
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      // Verify the seek was successful
-      const actualTime = howl.seek() as number;
-      const timeDiff = Math.abs(actualTime - time);
-      
-      if (timeDiff > 0.1) { // Allow small tolerance
-        console.warn(`Audio seek verification failed: requested ${time}, got ${actualTime}`);
-        throw new Error('Seek verification failed');
-      }
-
-      isSeekingRef.current = false;
-      return true;
-
-    } catch (error) {
-      console.error('Audio seek failed:', error);
-      
-      // Increment retry count and check if we should switch to fallback mode
-      retryCountRef.current++;
-      
-      if (retryCountRef.current >= maxRetries) {
-        console.warn('Audio seek failed multiple times, switching to HTML5 fallback mode');
-        fallbackModeRef.current = true;
-        
-        // Force reload with HTML5 mode by creating a new Howl instance
-        if (howlRef.current) {
-          howlRef.current.unload();
-          const newHowl = createHowlWithRetry(src, 0);
-          // Force HTML5 mode for the new instance
-          (newHowl as unknown as { html5: boolean }).html5 = true;
-          howlRef.current = newHowl;
-        }
-      }
-      
-      isSeekingRef.current = false;
-      return false;
-    }
-  }, [duration, setProgress, isLoaded, src]);
+      if (duration > 0) setProgress(time / duration);
+    },
+    [isLoaded, duration, setProgress]
+  );
 
   const setVolumeLevel = useCallback((vol: number) => {
-    if (howlRef.current) {
-      howlRef.current.volume(vol);
-    }
+    howlRef.current?.volume(vol);
   }, []);
 
   const muteAudio = useCallback((muted: boolean) => {
-    if (howlRef.current) {
-      howlRef.current.mute(muted);
-    }
+    howlRef.current?.mute(muted);
   }, []);
 
   // Set the end callback — replaces any previous one, never stacks
   const onEnd = useCallback((callback: () => void) => {
     endCallbackRef.current = callback;
+  }, []);
+
+  // ─── Cleanup on unmount ────────────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+
+      // Disconnect the analyser tap from masterGain
+      if (analyserNodeRef.current && Howler.masterGain) {
+        try {
+          Howler.masterGain.disconnect(analyserNodeRef.current);
+        } catch {
+          // Ignore "node not connected" errors
+        }
+      }
+      setAnalyserNode(null);
+      setStoreAnalyser(null);
+      analyserConnectedRef.current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {

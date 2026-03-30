@@ -2,7 +2,7 @@
 
 import { usePlayerStore } from "@/store/playerStore";
 import { usePlaylist } from "@/hooks/usePlaylist";
-import { useState, useRef } from "react";
+import { useState } from "react";
 
 export function Controls() {
   const isPlaying = usePlayerStore(s => s.isPlaying);
@@ -15,28 +15,13 @@ export function Controls() {
   const seekTo = usePlayerStore(s => s.seekTo);
 
   const { hasNext, hasPrev, nextTrack, prevTrack } = usePlaylist();
-  
+
   // Local state for drag-to-seek
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(progress);
-  
-  // Track skip cooldown
-  const lastSkipRef = useRef(0);
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
-  };
-
-  const handlePrev = () => {
-    if (hasPrev) {
-      prevTrack();
-    }
-  };
-
-  const handleNext = () => {
-    if (hasNext) {
-      nextTrack();
-    }
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,53 +33,39 @@ export function Controls() {
   const handleSeekStart = (e: React.MouseEvent<HTMLInputElement> | React.TouchEvent<HTMLInputElement>) => {
     setIsDragging(true);
     const target = e.target as HTMLInputElement;
-    const newProgress = parseFloat(target.value);
-    setDragProgress(newProgress);
+    setDragProgress(parseFloat(target.value));
   };
 
   const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement> | React.TouchEvent<HTMLInputElement>) => {
     if (isDragging) {
       const target = e.target as HTMLInputElement;
-      const newProgress = parseFloat(target.value);
-      setDragProgress(newProgress);
+      setDragProgress(parseFloat(target.value));
     }
   };
 
   const handleSeekEnd = () => {
     if (isDragging) {
       setIsDragging(false);
-      // Only seek on release to prevent rapid decode attempts
+      // Commit the seek only on pointer release to avoid hammering the decoder
       seekTo(dragProgress);
     }
   };
 
-  // Track skip handlers with cooldown
-  const handlePrevWithCooldown = () => {
-    const now = Date.now();
-    if (now - lastSkipRef.current < 600) return; // 800ms cooldown
-    lastSkipRef.current = now;
-    if (hasPrev) {
-      prevTrack();
-    }
-  };
-
-  const handleNextWithCooldown = () => {
-    const now = Date.now();
-    if (now - lastSkipRef.current < 600) return; // 800ms cooldown
-    lastSkipRef.current = now;
-    if (hasNext) {
-      nextTrack();
-    }
-  };
+  // Skip buttons are disabled only when there are no more tracks.
+  // The core audio system now handles rapid skipping safely without
+  // needing the isTransitioning lock (thanks to .off() before .unload()
+  // and the generation counter).
+  const prevDisabled = !hasPrev;
+  const nextDisabled = !hasNext;
 
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-2xl mx-auto">
       {/* Main Controls */}
       <div className="flex items-center gap-6">
         <button
-          onClick={handlePrevWithCooldown}
+          onClick={() => { if (!prevDisabled) prevTrack(); }}
           className="p-3 rounded-full bg-accent/20 hover:bg-accent/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={!hasPrev}
+          disabled={prevDisabled}
         >
           ⏮
         </button>
@@ -107,9 +78,9 @@ export function Controls() {
         </button>
 
         <button
-          onClick={handleNextWithCooldown}
+          onClick={() => { if (!nextDisabled) nextTrack(); }}
           className="p-3 rounded-full bg-accent/20 hover:bg-accent/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={!hasNext}
+          disabled={nextDisabled}
         >
           ⏭
         </button>
@@ -153,8 +124,6 @@ export function Controls() {
           className="w-24 h-1 bg-foreground/20 rounded-lg appearance-none cursor-pointer slider"
         />
       </div>
-
-
     </div>
   );
 }
