@@ -1,10 +1,9 @@
 "use no memo";
 "use client";
 
-import { Canvas, useFrame } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { getThreeBands } from "@/lib/audioAnalysis";
-import { useAudioData } from "@/hooks/useAudioData";
 import { useRef, useMemo } from "react";
 import * as THREE from "three";
 
@@ -18,10 +17,10 @@ const CONFIG = {
     smoothing: 5,
   },
   effects: {
-    strobeWindow: 30, 
-    strobeDuration: 3, 
-    strobeThreshold: 0.85, 
-    strobeColor: "#ff007f", 
+    strobeWindow: 30,
+    strobeDuration: 3,
+    strobeThreshold: 0.85,
+    strobeColor: "#ff007f",
   }
 };
 
@@ -36,7 +35,7 @@ const StarFieldShader = {
     attribute float size;
     varying vec3 vColor;
     varying float vOpacity;
-    
+
     float rand(vec2 co){
       return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
     }
@@ -46,7 +45,7 @@ const StarFieldShader = {
       float uniqueId = rand(position.xy);
       float flicker = 0.5 + 0.5 * sin(time * (15.0 + uniqueId * 50.0));
       vOpacity = mix(0.4, flicker, step(0.05, bass) * bass);
-      
+
       vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
       gl_PointSize = size * (300.0 / -mvPosition.z);
       gl_Position = projectionMatrix * mvPosition;
@@ -64,7 +63,11 @@ const StarFieldShader = {
 
 const colorBlack = new THREE.Color("#000000");
 
-function Scene({ audioData }: { audioData: Uint8Array | null }) {
+/**
+ * Aurora Planet - Audio reactive 3D scene
+ * This component should be used inside a VisualizerViewport
+ */
+export default function AuroraPlanet({ audioData }: { audioData: Uint8Array | null }) {
   const systemRef = useRef<THREE.Group>(null);
   const planetRef = useRef<THREE.Points>(null);
   const ringsRef = useRef<THREE.Group>(null);
@@ -99,8 +102,8 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-    return { 
-      geometry, 
+    return {
+      geometry,
       material: new THREE.ShaderMaterial({
         uniforms: THREE.UniformsUtils.clone(StarFieldShader.uniforms),
         vertexShader: StarFieldShader.vertexShader,
@@ -109,7 +112,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
         blending: THREE.AdditiveBlending,
         vertexColors: true,
         depthWrite: false,
-      }) 
+      })
     };
   }, []);
 
@@ -145,7 +148,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       const phi = Math.acos(2 * getPoint(i * 2.2) - 1);
       const r = 2.2 + getPoint(i * 2.3) * 0.8;
       pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta) * 0.55; 
+      pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta) * 0.55;
       pos[i * 3 + 2] = r * Math.cos(phi);
     }
     const geometry = new THREE.BufferGeometry();
@@ -157,7 +160,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
 
   useFrame((state, delta) => {
     const time = state.clock.getElapsedTime();
-    
+
     // 1. Extract the frequencies
     const { bass, mids, highs } = getThreeBands(audioData);
 
@@ -174,7 +177,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
         // Isolate the trigger: Only fire if bass peaks AND we aren't currently locked in a flash or blackout
         if (bass > CONFIG.effects.strobeThreshold && strobeTimer.current === 0) {
           // Lock the duration: Force the pink flash for exactly 50ms
-          strobeTimer.current = 0.05; 
+          strobeTimer.current = 0.05;
           bgRef.current.set(CONFIG.effects.strobeColor);
         }
       }
@@ -185,7 +188,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
         // Enforce the blackout: Once the flash ends, snap to black and force a 50ms cooldown
         if (strobeTimer.current <= 0) {
           bgRef.current.set("#000000");
-          strobeTimer.current = -0.05; 
+          strobeTimer.current = -0.05;
         }
       } else if (strobeTimer.current < 0) {
         // Count up the cooldown timer until it hits 0, resetting the system
@@ -195,7 +198,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
         bgRef.current.set("#000000");
       }
     }
-    
+
     if (starFieldRef.current) {
       const mat = starFieldRef.current.material as THREE.ShaderMaterial;
       mat.uniforms.time.value = time;
@@ -238,7 +241,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
 
       <ambientLight intensity={0.05} />
       <pointLight position={[10, 10, 10]} intensity={2} color="#ffffff" />
-      
+
       <points ref={starFieldRef} geometry={starFieldSetup.geometry} material={starFieldSetup.material} />
 
       <group ref={systemRef} rotation={CONFIG.planet.tilt}>
@@ -262,26 +265,15 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
         <sphereGeometry args={[0.2, 24, 24]} />
         <pointsMaterial size={0.015} transparent opacity={1} depthWrite={false} />
       </points>
-      
-      <OrbitControls 
+
+      <OrbitControls
         autoRotate={true}
         autoRotateSpeed={0.5}
-        enablePan={false} 
-        minDistance={8} 
-        maxDistance={40} 
-        makeDefault 
+        enablePan={false}
+        minDistance={8}
+        maxDistance={40}
+        makeDefault
       />
     </>
-  );
-}
-
-export default function AuroraPlanet() {
-  const audioData = useAudioData();
-  return (
-    <div style={{ position: "absolute", inset: 0, background: "#000", overflow: "hidden" }}>
-      <Canvas camera={{ position: [5, 10, 10], fov: 35 }} gl={{ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true }}>
-        <Scene audioData={audioData} />
-      </Canvas>
-    </div>
   );
 }

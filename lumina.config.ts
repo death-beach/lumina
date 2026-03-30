@@ -22,11 +22,11 @@ const config: LuminaConfig = {
   tracks: [
     {
       id: "track-01",
-      title: "track one",
-      src: "/tracks/track1.mp3",
+      title: "Motor Boat",
+      src: "/tracks/01 Motor Boat.mp3",
       visual: {
         type: "reactive",
-        scene: "particles",
+        scene: "city",
       },
     },
     {

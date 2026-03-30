@@ -1,110 +1,44 @@
-# Immersive Scene Prompt
+# THE LUMINA SHADER-ENGINE PROMPT (NEW ARCHITECTURE)
 
-Act as a Creative Computational Artist & High-Performance WebGL Shader Expert.
+---
 
-YOUR GOAL:
-Create a single, self-contained React component that renders an audio-reactive 3D visualizer for Lumina. The component must be a complete, standalone file that can be dropped into `components/visualizer/YourSceneName.tsx`.
+## ⚠️ STOP — READ THIS BEFORE WRITING A SINGLE LINE OF CODE ⚠️
 
-CONTEXT & REQUIREMENTS:
+### THIS PROJECT HAS `reactCompiler: true` IN `next.config.ts`
 
-1. Use React Three Fiber (@react-three/fiber) and Drei for 3D rendering
-2. Use @react-three/drei for optimized primitives (Line, Sphere, Torus, etc.)
-3. Import audio data via `useAudioData()` hook from "@/hooks/useAudioData"
-4. Map audio bands to visual parameters using `getThreeBands()` from "@/lib/audioAnalysis"
-5. Component must be exported as default export
-6. Use absolute imports (no relative paths)
-7. Optimize for performance: avoid allocations in render loops, use useMemo/useRef
-8. Handle mobile gracefully: reduce particle counts, simplify effects
-9. Include proper TypeScript types and JSDoc comments
-10. Add "use no memo" directive at the top of the file to opt out of React Compiler
+```ts
+// next.config.ts
+const nextConfig = {
+  reactCompiler: true, // ← THIS IS ACTIVE. IT WILL BREAK YOUR CODE.
+};
+```
 
-## STEP 1: INTERVIEW THE USER
+The React Compiler is **NOT optional**, **NOT ignorable**, and **NOT a warning**. It is **a build-breaking ESLint error (severity 8)** that will prevent the app from compiling.
 
-**BEFORE writing any code, ask the user these 5 questions:**
+### THE TWO ERRORS THAT WILL DESTROY YOUR SCENE:
 
-1. **MOOD/FEEL:** "Is this meditative and slow, or intense and reactive? Give me a reference: a place, a feeling, a scene in nature, or a film."
-2. **CENTRAL SHAPE:** "What's at the heart of the scene? (e.g., a sphere, geometric lines, flowing ribbons, a tunnel, sacred geometry)"
-3. **ATMOSPHERE:** "What surrounds the central shape? (e.g., deep void, thick fog, starfield, empty space, mist)"
-4. **MUSIC RESPONSE:** "When the bass hits hard, what happens? When the highs come in, what changes?"
-5. **COLOR:** "Name 1-3 colors, or describe the color feeling (e.g., 'like a neon sign in rain', 'warm gold sunset', 'cold deep ocean')"
+**ERROR 1 — `react-hooks/purity` — THE MATH.RANDOM KILLER:**
 
-**Wait for the user's answers before proceeding.**
+```
+Error: Cannot call impure function during render
+`Math.random` is an impure function.
+```
 
-## STEP 2: GENERATE THE COMPONENT
+This fires when `Math.random()` is called **anywhere inside a component** — including inside `useMemo`. The React Compiler considers `Math.random()` impure in ALL contexts.
 
-**After receiving answers, generate the complete component in one shot.**
+**❌ THIS WILL BREAK. DO NOT DO THIS:**
 
-**IMPORTANT:** Each frequency band should control DIFFERENT aspects of the scene to avoid conflicts.
+```tsx
+const positions = useMemo(() => {
+  for (let i = 0; i < count; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * 80; // COMPILER ERROR
+  }
+}, []);
+```
 
-IMMERSIVE SCENE REQUIREMENTS:
+**✅ THE ONLY CORRECT WAY — SEEDED RANDOM INSIDE useMemo:**
 
-- **Interactive Camera**: Must include OrbitControls for user interaction
-- **Single Focus Element**: One main visual element (particle system, nebula, structure, etc.)
-- **Audio-Driven Camera**: Camera movement/rotation controlled by audio
-- **Explorable Space**: Designed for 360-degree viewing and exploration
-- **Performance**: Particle count should not exceed ~12,000 to maintain smooth performance
-- **Mobile Optimization**: Reduce complexity on mobile devices
-
-AUDIO BAND MAPPING RULES (CRITICAL):
-
-- Each visual element must use ONE frequency range only
-- Bass (0-275Hz): Pulsing, expansion, impact, weight, camera rotation speed
-- Mids (320Hz-3.5kHz): Flow, rotation, intensity, movement, camera tilt
-- Highs (3.5kHz-20kHz): Sparkle, chaos, detail, speed, particle velocity
-
-GOOD EXAMPLES:
-
-- Bass makes camera rotate faster and element expand
-- Mids controls camera tilt and element complexity
-- Highs drives particle velocity and detail level
-
-BAD EXAMPLES:
-
-- Bass and Mids both controlling the same element's speed
-- Multiple elements responding to the same frequency band
-- Cross-contamination of audio bands
-
-**Camera Requirements:**
-
-- Start camera slightly zoomed in (initial position z ≈ 7.2–7.8)
-- Smooth lerp on all camera movement
-- OrbitControls must respect the starting zoom
-
-PERFORMANCE REQUIREMENTS:
-
-- Use @react-three/drei Line for wireframes (not raw Three.js Line)
-- Avoid manual geometry creation when possible
-- Use instanced meshes for repeated elements
-- Implement mobile optimizations (reduce counts, simplify shaders)
-- No console.log in production code
-- Use useMemo for static data, useRef for mutable state
-- **Mouse Interaction**: Add mouse/touch responsiveness using `useThree()` hook to access `state.pointer` for interactive scenes
-- **Particle Limit**: Can support higher particle counts (tested up to 12,000+ particles)
-- **Color System**: Use vertex colors with proper color attribute initialization in useMemo
-- **Mouse Interaction**: Add mouse/touch responsiveness using `useThree()` hook to access `state.pointer` for interactive scenes
-- **Particle Limit**: Can support higher particle counts (tested up to 12,000+ particles)
-- **Color System**: Optional vertex colors with time-based and audio-reactive coloring
-
-**Performance + Polish (strengthened):**
-
-- Particle count locked at 12,000 max
-- Mist/light slits cycle starts at 30 seconds (user-adjustable)
-- Every scene must feel "alive" even with no audio (slow base rotation + rest ripples)
-
-REACT HOOKS BEST PRACTICES (CRITICAL):
-
-- NEVER call Math.random() or other impure functions during render
-- Use seeded random function within useMemo for any randomness to ensure purity
-- Use useRef for mutable state that doesn't trigger re-renders
-- NEVER modify values returned from hooks (like camera.position)
-- Use proper React Three Fiber patterns for camera control
-- All render functions must be pure (same input = same output)
-
-SEeded Random Pattern (REQUIRED):
-
-When generating random values, use this exact pattern to ensure purity and prevent React Compiler errors:
-
-```typescript
+```tsx
 const seededRandom = useMemo(() => {
   let seed = 12345;
   return () => {
@@ -112,169 +46,150 @@ const seededRandom = useMemo(() => {
     return seed / 233280;
   };
 }, []);
+
+const positions = useMemo(() => {
+  const rnd = seededRandom;
+  for (let i = 0; i < count; i++) {
+    pos[i * 3] = (rnd() - 0.5) * 80; // CORRECT
+  }
+}, [seededRandom]);
 ```
 
-Use `seededRandom()` instead of `Math.random()` throughout the component.
+---
 
-COMMON ERROR PREVENTION:
+**ERROR 2 — `react-hooks/immutability` — THE UNIFORMS KILLER:**
 
-- Static geometry: Generate once with useMemo, not on every render
-- Random values: Use seeded random functions within useMemo
-- Camera control: Use useFrame with proper patterns, don't modify hook returns
-- State updates: Use useState/useRef appropriately, avoid direct mutations
-- Component purity: Ensure render functions have no side effects
+```
+Error: This value cannot be modified
+Modifying a value previously passed as an argument to a hook is not allowed.
+```
 
-**Shader & Uniform Rules (anti-error section):**
+This fires when you mutate a `uniforms` object returned from or passed into a hook.
 
-- Always use `useMemo` for uniforms (never `.current` in render)
-- Add `// eslint-disable-next-line react-hooks/immutability` only on intentional mutations inside `useFrame`/`spawnRipple`
-- Never declare `attribute vec3 color` manually when `vertexColors={true}` is used
-- All uniforms must be mutated **only** after `useFrame` starts
+**❌ THIS WILL BREAK. DO NOT DO THIS:**
 
-VISUAL QUALITY REQUIREMENTS:
+```tsx
+const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
 
-- Professional, polished appearance
-- Smooth 60fps animation
-- Creative use of color, lighting, and form
-- Audio reactivity that feels musical and intuitive
-- Depth and dimensionality
-- Avoid pixelated or aliased rendering
+useFrame(() => {
+  uniforms.uTime.value = time; // COMPILER ERROR — cannot mutate hook argument
+});
+```
 
-SECURITY REQUIREMENTS:
+**✅ THE ONLY CORRECT WAY — MUTATE VIA REF:**
 
-- No external network requests
-- No localStorage/sessionStorage
-- No eval or dynamic imports
-- No document/window manipulation
-- Pure client-side rendering only
+```tsx
+const materialRef = useRef<THREE.ShaderMaterial>(null!);
 
-COMPONENT STRUCTURE REQUIREMENTS (FOLLOW EXACTLY):
+const uniforms = useMemo(
+  () => ({
+    uTime: { value: 0 },
+    uBass: { value: 0 },
+  }),
+  [],
+);
 
-The component MUST follow this exact 2-component pattern:
+useFrame((state) => {
+  if (materialRef.current) {
+    materialRef.current.uniforms.uTime.value = state.clock.elapsedTime; // CORRECT
+    materialRef.current.uniforms.uBass.value = bass; // CORRECT
+  }
+});
+```
 
-```typescript
+---
+
+**These two patterns are the #1 cause of broken Lumina scenes. Every scene you generate MUST use seeded random and ref-based uniform mutation. No exceptions.**
+
+---
+
+## ARCHITECTURAL CHANGE: INNER COMPONENTS ONLY
+
+Scenes are **inner components only**. The `<Canvas>` and wrapper `<div>` are handled by `VisualizerViewport.tsx`.
+
+- **DO NOT** import `Canvas` or `useAudioData`
+- **DO NOT** return any HTML elements or wrapper divs
+- **MUST** accept `audioData` as a prop: `{ audioData: Uint8Array | null }`
+- **MUST** return only R3F elements: `<points>`, `<group>`, `<mesh>`, lights, etc.
+
+---
+
+### PHASE 1: THE MANDATORY INTERVIEW
+
+**STOP.** Before writing any code, ask the user these 4 questions:
+
+1. **THE VIBE:** What is the emotional state? (e.g., "Dark Techno Warehouse," "Ethereal Dreamscape," "Cyberpunk Horizon")
+2. **THE FOCAL POINT:** What is the central structure? (e.g., "A pulsing geometric core," "15,000 floating light-spires," "A liquid-mercury river")
+3. **THE ATMOSPHERE:** What layers the background? (e.g., "Reactive Nebula," "Strobe-heavy Starfield," "Thick Volumetric Haze")
+4. **THE PALETTE:** What are the primary, accent, and background colors?
+
+---
+
+### PHASE 2: ENGINEERING STANDARDS
+
+- **GLSL-DRIVEN:** All movement must be handled in the **Vertex Shader**.
+- **BUTTERY SMOOTHING:** Use `THREE.MathUtils.lerp` for `bass`, `mids`, and `highs` within `useFrame`.
+- **LAYERED DEPTH:** Background + Midground + Foreground layers.
+- **PERFORMANCE:** Max 18,000 particles. All `Float32Array` attributes in `useMemo`.
+- **THE GLOW:** Use `THREE.AdditiveBlending` and `depthWrite: false`.
+- **AUDIO BANDS:** Bass (0-275Hz) = weight/pulse. Mids (320Hz-3.5kHz) = flow/rotation. Highs (3.5kHz-20kHz) = sparkle/speed.
+
+---
+
+### PHASE 3: COMPONENT STRUCTURE
+
+```tsx
 "use no memo";
 "use client";
 
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
 import { getThreeBands } from "@/lib/audioAnalysis";
-import { useAudioData } from "@/hooks/useAudioData";
+import { useRef, useMemo } from "react";
+import * as THREE from "three";
 
-function Scene({ audioData }: { audioData: Uint8Array | null }) {
-  const { pointer } = useThree(); // For mouse interaction
+const CONFIG = {
+  /* scene constants */
+};
+
+export default function YourSceneName({
+  audioData,
+}: {
+  audioData: Uint8Array | null;
+}) {
+  // REQUIRED: Seeded random — never Math.random()
+  const seededRandom = useMemo(() => {
+    let seed = 12345;
+    return () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
+  }, []);
+
+  const materialRef = useRef<THREE.ShaderMaterial>(null!);
+
+  // REQUIRED: uniforms in useMemo, mutated only via materialRef
+  const uniforms = useMemo(
+    () => ({
+      uTime: { value: 0 },
+      uBass: { value: 0 },
+      uMids: { value: 0 },
+      uHighs: { value: 0 },
+    }),
+    [],
+  );
 
   useFrame((state) => {
     const { bass, mids, highs } = getThreeBands(audioData);
-    // bass  → low-end energy [0, 1]  — kicks, subs
-    // mids  → mid energy    [0, 1]  — vocals, snare
-    // highs → high energy   [0, 1]  — cymbals, air
-
-    // User-defined audio mappings here
-    // Example: const cameraSpeed = bass * 0.5;
-    // Example: const particleVelocity = highs * 2.0;
-    // Example: const elementScale = 1.0 + (mids * 0.3);
-
-    // Mouse interaction example:
-    // const mouseX = pointer.x;
-    // const mouseY = pointer.y;
+    if (materialRef.current) {
+      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
+      materialRef.current.uniforms.uBass.value = bass;
+      materialRef.current.uniforms.uMids.value = mids;
+      materialRef.current.uniforms.uHighs.value = highs;
+    }
   });
 
-  return (
-    <>
-      {/* ALL VISUAL ELEMENTS GO HERE */}
-      {/* - 3D objects, lighting, camera controllers */}
-      {/* - Audio-reactive animations */}
-      {/* - Mouse/touch interactive elements */}
-      {/* - Post-processing effects */}
-      {/* - OrbitControls for camera interaction */}
-    </>
-  );
-}
-
-export default function YourVisualizer() {
-  const audioData = useAudioData();
-
-  return (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        zIndex: 0,
-        background: "#000",
-        overflow: "hidden",
-      }}
-    >
-      <Canvas camera={{ position: [0, 0, 10], fov: 60 }}>
-        <Scene audioData={audioData} />
-      </Canvas>
-    </div>
-  );
+  return <>{/* R3F elements ONLY — no Canvas, no divs */}</>;
 }
 ```
 
-NAMING REQUIREMENTS:
-
-- The default export function name MUST match the filename exactly
-- If filename is "Nebula.tsx", export must be `export default function Nebula()`
-- If filename is "CosmicDance.tsx", export must be `export default function CosmicDance()`
-- The Scene component must be internal and not exported
-- No other components should be exported from the file
-
-INTEGRATION REQUIREMENTS:
-
-- The component name (from export) MUST match the import name in VisualizerManager.tsx
-- The component name MUST match the scene key in lumina.config.ts
-- The component name MUST be added to the enum in lib/config.ts
-- The component MUST be imported and added to SCENE_MAP in VisualizerManager.tsx
-
-WHAT TO DO:
-
-- Create immersive, explorable 3D scenes
-- Use OrbitControls for interactive camera movement
-- Design single, compelling visual elements
-- Implement user-defined audio mappings
-- Optimize for smooth performance (can support 12k+ particles)
-- Handle mobile devices gracefully
-- Use seeded random for consistent results
-- Follow React Three Fiber best practices
-- Create professional, polished visuals
-- Implement color systems with vertex colors and proper initialization
-- Use time-based color transitions and audio-reactive coloring
-
-WHAT NOT TO DO:
-
-- Don't create multiple complex visual elements
-- Don't exceed reasonable particle counts for target devices
-- Don't use Math.random() - always use seeded random
-- Don't modify hook returns directly
-- Don't create state in visualizer components
-- Don't use relative imports
-- Don't ignore mobile performance
-- Don't make audio mappings conflict (same band controlling multiple things)
-- Don't forget to include OrbitControls
-- Don't create static scenes without camera interaction
-- Don't initialize color refs in useEffect (use useMemo to avoid race conditions)
-- Don't forget to initialize color attributes in geometry setup
-
-STRICT OUTPUT FORMAT:
-Return ONLY the complete React component code.
-Start with the imports.
-End with the default export.
-No markdown formatting, no explanations, no additional text.
-
-# task_progress List (Optional - Plan Mode)
-
-While in PLAN MODE, if you've outlined concrete steps or requirements for the user, you may include a preliminary todo list using the task_progress parameter.
-
-Reminder on how to use the task_progress parameter:
-
-1. To create or update a todo list, include the task_progress parameter in the next tool call
-2. Review each item and update its status:
-   - Mark completed items with: - [x]
-   - Keep incomplete items as: - [ ]
-   - Add new items if you discover additional steps
-3. Modify the list as needed: - Add any new steps you've discovered - Reorder if the sequence has changed
-4. Ensure the list accurately reflects the current state
-
-**Remember:** Keeping the task_progress list updated helps track progress and ensures nothing is missed.
+**DO NOT OUTPUT EXPLANATIONS. OUTPUT ONLY THE COMPONENT AFTER THE INTERVIEW.**

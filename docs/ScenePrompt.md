@@ -1,80 +1,33 @@
-Act as a Creative Computational Artist & High-Performance WebGL Shader Expert.
+---
 
-YOUR GOAL:
-Create a single, self-contained React component that renders an audio-reactive 3D visualizer for Lumina. The component must be a complete, standalone file that can be dropped into `components/visualizer/YourSceneName.tsx`.
+## ⚠️ STOP — READ THIS BEFORE WRITING A SINGLE LINE OF CODE ⚠️
 
-CONTEXT & REQUIREMENTS:
+### THIS PROJECT HAS `reactCompiler: true` IN `next.config.ts`
 
-1. Use React Three Fiber (@react-three/fiber) and Drei for 3D rendering
-2. Use @react-three/drei for optimized primitives (Line, Sphere, Torus, etc.)
-3. Import audio data via `useAudioData()` hook from "@/hooks/useAudioData"
-4. Map audio bands to visual parameters using `getThreeBands()` from "@/lib/audioAnalysis"
-5. Component must be exported as default export
-6. Use absolute imports (no relative paths)
-7. Optimize for performance: avoid allocations in render loops, use useMemo/useRef
-8. Handle mobile gracefully: reduce particle counts, simplify effects
-9. Include proper TypeScript types and JSDoc comments
-10. Add "use no memo" directive at the top of the file to opt out of React Compiler
+```ts
+const nextConfig = {
+  reactCompiler: true, // ← ACTIVE. WILL BREAK YOUR CODE IF IGNORED.
+};
+```
 
-## STEP 1: INTERVIEW THE USER
+The React Compiler enforces strict purity rules at the **ESLint level**. Violations are **severity 8 build-breaking errors**, not warnings.
 
-**BEFORE writing any code, ask the user these 5 questions:**
+### THE TWO ERRORS THAT WILL DESTROY YOUR SCENE:
 
-1. **MOOD/FEEL:** "Is this meditative and slow, or intense and reactive? Give me a reference: a place, a feeling, a scene in nature, or a film."
-2. **CENTRAL SHAPE:** "What's at the heart of the scene? (e.g., a sphere, geometric lines, flowing ribbons, a tunnel, sacred geometry)"
-3. **ATMOSPHERE:** "What surrounds the central shape? (e.g., deep void, thick fog, starfield, empty space, mist)"
-4. **MUSIC RESPONSE:** "When the bass hits hard, what happens? When the highs come in, what changes?"
-5. **COLOR:** "Name 1-3 colors, or describe the color feeling (e.g., 'like a neon sign in rain', 'warm gold sunset', 'cold deep ocean')"
+**ERROR 1 — `react-hooks/purity`:**
+`Math.random()` is forbidden everywhere inside a React component — including inside `useMemo`. Use the seeded random pattern below. No exceptions.
 
-**Wait for the user's answers before proceeding.**
+**❌ BREAKS:**
+```tsx
+const pos = useMemo(() => {
+  for (let i = 0; i < count; i++) {
+    arr[i] = (Math.random() - 0.5) * 80; // COMPILER ERROR
+  }
+}, []);
+```
 
-## STEP 2: GENERATE THE COMPONENT
-
-**After receiving answers, generate the complete component in one shot.**
-
-AUDIO BAND MAPPING RULES (CRITICAL):
-
-- Each visual element must use ONE frequency range only
-- Bass (0-275Hz): Pulsing, expansion, impact, weight
-- Mids (320Hz-3.5kHz): Flow, rotation, intensity, movement
-- Highs (3.5kHz-20kHz): Sparkle, chaos, detail, speed
-
-GOOD EXAMPLES:
-
-- Bass makes sphere expand/contract
-- Mids controls rotation speed of rings
-- Highs drives particle velocity/sparkle
-
-BAD EXAMPLES:
-
-- Bass and Mids both controlling the same element's speed
-- Multiple elements responding to the same frequency band
-- Cross-contamination of audio bands
-
-PERFORMANCE REQUIREMENTS:
-
-- Use @react-three/drei Line for wireframes (not raw Three.js Line)
-- Avoid manual geometry creation when possible
-- Use instanced meshes for repeated elements
-- Implement mobile optimizations (reduce counts, simplify shaders)
-- No console.log in production code
-- Use useMemo for static data, useRef for mutable state
-- **Mouse Interaction**: Add mouse/touch responsiveness using `useThree()` hook to access `state.pointer` for interactive scenes
-
-REACT HOOKS BEST PRACTICES (CRITICAL):
-
-- NEVER call Math.random() or other impure functions during render
-- Use seeded random function within useMemo for any randomness to ensure purity
-- Use useRef for mutable state that doesn't trigger re-renders
-- NEVER modify values returned from hooks (like camera.position)
-- Use proper React Three Fiber patterns for camera control
-- All render functions must be pure (same input = same output)
-
-SEeded Random Pattern (REQUIRED):
-
-When generating random values, use this exact pattern to ensure purity and prevent React Compiler errors:
-
-```typescript
+**✅ CORRECT:**
+```tsx
 const seededRandom = useMemo(() => {
   let seed = 12345;
   return () => {
@@ -82,110 +35,120 @@ const seededRandom = useMemo(() => {
     return seed / 233280;
   };
 }, []);
+
+const pos = useMemo(() => {
+  const rnd = seededRandom;
+  for (let i = 0; i < count; i++) {
+    arr[i] = (rnd() - 0.5) * 80; // CORRECT
+  }
+}, [seededRandom]);
 ```
 
-Use `seededRandom()` instead of `Math.random()` throughout the component.
+**ERROR 2 — `react-hooks/immutability`:**
+Never mutate a `uniforms` object directly. Always mutate via `materialRef.current.uniforms`.
 
-COMMON ERROR PREVENTION:
+**❌ BREAKS:**
+```tsx
+const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
+uniforms.uTime.value = time; // COMPILER ERROR
+```
 
-- Static geometry: Generate once with useMemo, not on every render
-- Random values: Use seeded random functions within useMemo
-- Camera control: Use useFrame with proper patterns, don't modify hook returns
-- State updates: Use useState/useRef appropriately, avoid direct mutations
-- Component purity: Ensure render functions have no side effects
+**✅ CORRECT:**
+```tsx
+const materialRef = useRef<THREE.ShaderMaterial>(null!);
+const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
 
-VISUAL QUALITY REQUIREMENTS:
+useFrame((state) => {
+  if (materialRef.current) {
+    materialRef.current.uniforms.uTime.value = state.clock.elapsedTime; // CORRECT
+  }
+});
+```
 
-- Professional, polished appearance
-- Smooth 60fps animation
-- Creative use of color, lighting, and form
-- Audio reactivity that feels musical and intuitive
-- Depth and dimensionality
-- Avoid pixelated or aliased rendering
+---
 
-SECURITY REQUIREMENTS:
+Act as a Creative Computational Artist & High-Performance WebGL Shader Expert.
 
-- No external network requests
-- No localStorage/sessionStorage
-- No eval or dynamic imports
-- No document/window manipulation
-- Pure client-side rendering only
+**NEW ARCHITECTURE:** You are generating **inner scene components only**. Do NOT generate a full visualizer with its own `<Canvas>` or wrapper `<div>`. The Canvas is provided by `VisualizerViewport.tsx`.
 
-COMPONENT STRUCTURE REQUIREMENTS (FOLLOW EXACTLY):
+YOUR GOAL:
+Create a React component that renders ONLY the 3D scene content for Lumina. The component will be used inside `<VisualizerViewport>`.
 
-The component MUST follow this exact 2-component pattern:
+CONTEXT & REQUIREMENTS:
+
+1. Use React Three Fiber (@react-three/fiber) and Drei for 3D rendering
+2. Import audio data via the `audioData` prop (NOT useAudioData hook)
+3. Map audio bands to visual parameters using `getThreeBands()` from "@/lib/audioAnalysis"
+4. Component must be exported as default export
+5. Use absolute imports (no relative paths)
+6. Optimize for performance: avoid allocations in render loops, use useMemo/useRef
+7. Add "use no memo" directive at the top of the file to opt out of React Compiler
+
+## STEP 1: INTERVIEW THE USER
+
+**BEFORE writing any code, ask the user these 5 questions:**
+
+1. **MOOD/FEEL:** "Is this meditative and slow, or intense and reactive? Give me a reference."
+2. **CENTRAL SHAPE:** "What's at the heart of the scene?"
+3. **ATMOSPHERE:** "What surrounds the central shape?"
+4. **MUSIC RESPONSE:** "When the bass hits hard, what happens? When the highs come in, what changes?"
+5. **COLOR:** "Name 1-3 colors, or describe the color feeling."
+
+**Wait for the user's answers before proceeding.**
+
+## STEP 2: GENERATE THE COMPONENT
+
+**COMPONENT STRUCTURE (FOLLOW EXACTLY):**
 
 ```typescript
 "use no memo";
 "use client";
 
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { getThreeBands } from "@/lib/audioAnalysis";
-import { useAudioData } from "@/hooks/useAudioData";
+import { useRef, useMemo } from "react";
+import * as THREE from "three";
 
-function Scene({ audioData }: { audioData: Uint8Array | null }) {
-  const { pointer } = useThree(); // For mouse interaction
+/**
+ * YourSceneName - inner scene component for VisualizerViewport
+ */
+export default function YourSceneName({ audioData }: { audioData: Uint8Array | null }) {
+  // ALWAYS use seeded random — never Math.random()
+  const seededRandom = useMemo(() => {
+    let seed = 12345;
+    return () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
+  }, []);
+
+  const materialRef = useRef<THREE.ShaderMaterial>(null!);
+
+  // Define uniforms in useMemo — mutate ONLY via materialRef.current
+  const uniforms = useMemo(() => ({
+    uTime: { value: 0 },
+    uBass: { value: 0 },
+    uMids: { value: 0 },
+    uHighs: { value: 0 },
+  }), []);
 
   useFrame((state) => {
     const { bass, mids, highs } = getThreeBands(audioData);
-    // bass  → low-end energy [0, 1]  — kicks, subs
-    // mids  → mid energy    [0, 1]  — vocals, snare
-    // highs → high energy   [0, 1]  — cymbals, air
-
-    // Mouse interaction example:
-    // const mouseX = pointer.x;
-    // const mouseY = pointer.y;
+    if (materialRef.current) {
+      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
+      materialRef.current.uniforms.uBass.value = bass;
+      materialRef.current.uniforms.uMids.value = mids;
+      materialRef.current.uniforms.uHighs.value = highs;
+    }
   });
 
   return (
     <>
-      {/* ALL VISUAL ELEMENTS GO HERE */}
-      {/* - 3D objects, lighting, camera controllers */}
-      {/* - Audio-reactive animations */}
-      {/* - Mouse/touch interactive elements */}
-      {/* - Post-processing effects */}
+      {/* R3F elements ONLY — no Canvas, no divs */}
     </>
-  );
-}
-
-export default function YourVisualizer() {
-  const audioData = useAudioData();
-
-  return (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        zIndex: 0,
-        background: "#000",
-        overflow: "hidden",
-      }}
-    >
-      <Canvas camera={{ position: [0, 0, 10], fov: 60 }}>
-        <Scene audioData={audioData} />
-      </Canvas>
-    </div>
   );
 }
 ```
 
-NAMING REQUIREMENTS:
-
-- The default export function name MUST match the filename exactly
-- If filename is "Pillar.tsx", export must be `export default function Pillar()`
-- If filename is "Nebula.tsx", export must be `export default function Nebula()`
-- The Scene component must be internal and not exported
-- No other components should be exported from the file
-
-INTEGRATION REQUIREMENTS:
-
-- The component name (from export) MUST match the import name in VisualizerManager.tsx
-- The component name MUST match the scene key in lumina.config.ts
-- The component name MUST be added to the enum in lib/config.ts
-- The component MUST be imported and added to SCENE_MAP in VisualizerManager.tsx
-
-STRICT OUTPUT FORMAT:
-Return ONLY the complete React component code.
-Start with the imports.
-End with the default export.
-No markdown formatting, no explanations, no additional text.
+**STRICT OUTPUT FORMAT:**
+Return ONLY the complete React component code. No explanations, no markdown outside code blocks.

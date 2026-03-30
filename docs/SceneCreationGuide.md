@@ -2,7 +2,7 @@
 
 ## Quick Start
 
-1. **Copy the prompt template from `ScenePrompt.md` or `ImmersiveScentePrompt.md`**
+1. **Copy the prompt template from `ImmersiveScentePrompt.md`**
 2. **Paste into favorite AI (Gemini, Claude, Grok) and answer the questions it asks**
 3. **Generate the component code**
 4. **Register your scene in `VisualizerManager.tsx` (follow instrucitons in `Use_New_Visualizer_Inst.md1`)**
@@ -21,12 +21,14 @@ Save your generated code as `components/visualizer/YourSceneName.tsx`
 Add your scene to the SCENE_MAP in `components/visualizer/VisualizerManager.tsx`:
 
 ```typescript
+import YourSceneName from "./YourSceneName";
+
 const SCENE_MAP: Record<string, React.ComponentType> = {
   particles: SongSingularity,
   waveform: SongSingularity,
   nebula: SongSingularity,
   tesseract: BreathingTesseract,
-  yourscene: YourSceneName, // Add this line
+  yourscene: YourSceneName, // <-- Add this line
 };
 ```
 

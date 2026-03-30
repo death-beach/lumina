@@ -3,15 +3,18 @@
 
 import * as THREE from "three";
 import { useMemo, useRef } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { getThreeBands } from "@/lib/audioAnalysis";
-import { useAudioData } from "@/hooks/useAudioData";
 
 const PARTICLE_COUNT = 12000;
-const RADIUS = 1.8; 
+const RADIUS = 1.8;
 
-function Scene({ audioData }: { audioData: Uint8Array | null }) {
+/**
+ * Flower - Audio reactive particle system
+ * This component should be used inside a VisualizerViewport
+ */
+export default function Flower({ audioData }: { audioData: Uint8Array | null }) {
   const { pointer } = useThree();
   const groupRef = useRef<THREE.Group>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
@@ -47,7 +50,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
           const rootX = Math.cos(angle) * RADIUS * s;
           const rootY = Math.sin(angle) * RADIUS * s;
           centers.push(new THREE.Vector3(rootX, rootY, 0));
-          
+
           if (s > 1) {
             for (let j = 1; j < s; j++) {
               const nextAngle = ((i + 1) * Math.PI) / 3;
@@ -65,8 +68,8 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       return centers;
     };
 
-    const centersSeed = getCenters(1); 
-    const centersFlower = getCenters(2); 
+    const centersSeed = getCenters(1);
+    const centersFlower = getCenters(2);
 
     for (let p = 0; p < PARTICLE_COUNT; p++) {
       const rVal = rnd();
@@ -102,7 +105,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       uBass: { value: 0 },
       uMids: { value: 0 },
       uHighs: { value: 0 },
-      uBreath: { value: 1.0 }, // Added this
+      uBreath: { value: 1.0 },
       uColor1: { value: new THREE.Color("#00ffcc") },
       uColor2: { value: new THREE.Color("#0066ff") },
       uColor3: { value: new THREE.Color("#aa00ff") },
@@ -118,7 +121,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       uniform float uTime;
       uniform float uAudioActive;
       uniform float uBass;
-      uniform float uBreath; // Declare it here so the shader can see it
+      uniform float uBreath;
 
       void main() {
         vRandom = aRandom;
@@ -129,7 +132,6 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
         pos = mix(pos, aFlower, morph2);
 
         if (uTime > 25.0) {
-          // uBreath will slowly force this to 0 (flat) every few seconds
           float wave = sin(length(pos.xy) * 0.8 - uTime) * 1.5;
           pos.z += wave * uAudioActive * (1.0 + uBass) * uBreath;
         }
@@ -181,7 +183,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
     currentHighs.current = THREE.MathUtils.lerp(currentHighs.current, highs, delta * 10);
 
     const audioActive = THREE.MathUtils.smoothstep(time, 15.5, 16.5);
-    
+
     // Create the "Breath" (0 = flat, 1 = deep)
     const breath = Math.abs(Math.sin(time * 0.15)) * 0.9 + 0.1;
 
@@ -191,37 +193,35 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
       materialRef.current.uniforms.uBass.value = currentBass.current;
       materialRef.current.uniforms.uMids.value = currentMids.current;
       materialRef.current.uniforms.uHighs.value = currentHighs.current;
-      materialRef.current.uniforms.uBreath.value = breath; 
+      materialRef.current.uniforms.uBreath.value = breath;
     }
 
     if (groupRef.current) {
-    const axisSwitch = Math.sin(time * 0.2); 
-    
-    // 1. Friction stays to keep it snappy
-    audioRotAccumulator.current *= 0.90; 
-    audioRotAccumulator.current += currentHighs.current * audioActive * delta * 1.5;
+      const axisSwitch = Math.sin(time * 0.2);
 
-    // 2. THE LIMITER: 
-    // Instead of adding time (which spins 360), we use sin(time) 
-    // to oscillate within a 33-45% range (approx 1.2 to 1.6 radians).
-    const baseTiltY = Math.sin(time * 0.2) * 0.4; // Oscillates left/right
-    const musicTiltY = audioRotAccumulator.current * axisSwitch;
-    
-    // Apply Y Rotation (Limited range)
-    groupRef.current.rotation.y = baseTiltY + musicTiltY;
+      // 1. Friction stays to keep it snappy
+      audioRotAccumulator.current *= 0.90;
+      audioRotAccumulator.current += currentHighs.current * audioActive * delta * 1.5;
 
-    // Apply X Rotation (Limited range + Pointer)
-    const baseTiltX = Math.cos(time * 0.15) * 0.4; // Oscillates up/down
-    const xTarget = (pointer.y * 0.4) + baseTiltX + (audioRotAccumulator.current * (0.6 - Math.abs(axisSwitch)));
-    
-    groupRef.current.rotation.x = THREE.MathUtils.lerp(
-        groupRef.current.rotation.x, 
-        xTarget, 
+      // 2. THE LIMITER:
+      const baseTiltY = Math.sin(time * 0.2) * 0.4;
+      const musicTiltY = audioRotAccumulator.current * axisSwitch;
+
+      // Apply Y Rotation (Limited range)
+      groupRef.current.rotation.y = baseTiltY + musicTiltY;
+
+      // Apply X Rotation (Limited range + Pointer)
+      const baseTiltX = Math.cos(time * 0.15) * 0.4;
+      const xTarget = (pointer.y * 0.4) + baseTiltX + (audioRotAccumulator.current * (0.6 - Math.abs(axisSwitch)));
+
+      groupRef.current.rotation.x = THREE.MathUtils.lerp(
+        groupRef.current.rotation.x,
+        xTarget,
         0.05
-    );
-    
-    // 3. Keep Z subtle so it doesn't flip the design over
-    groupRef.current.rotation.z = Math.sin(time * 0.1) * 0.2 + (currentMids.current * audioActive * 0.1);
+      );
+
+      // 3. Keep Z subtle so it doesn't flip the design over
+      groupRef.current.rotation.z = Math.sin(time * 0.1) * 0.2 + (currentMids.current * audioActive * 0.1);
     }
   });
 
@@ -236,18 +236,7 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
         </bufferGeometry>
         <shaderMaterial ref={materialRef} args={[shaderArgs]} />
       </points>
+      <OrbitControls enablePan={false} />
     </group>
-  );
-}
-
-export default function Flower() {
-  const audioData = useAudioData();
-  return (
-    <div style={{ position: "absolute", inset: 0, background: "#000" }}>
-      <Canvas camera={{ position: [0, 0, 12.5], fov: 55 }}>
-        <Scene audioData={audioData} />
-        <OrbitControls enablePan={false} />
-      </Canvas>
-    </div>
   );
 }

@@ -1,11 +1,10 @@
 'use no memo';
 'use client';
 import React, { useRef, useMemo, useEffect } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { getThreeBands } from "@/lib/audioAnalysis";
-import { useAudioData } from "@/hooks/useAudioData";
 
 // ──────────────────────────────────────────────────────────────
 // IMPROVED LUMINOUS HAZE SHADERS (unchanged)
@@ -16,7 +15,7 @@ const hazeVertexShader = `
   uniform float uAudioBass;
   void main() {
     vec3 pos = position;
-   
+
     float t = uTime * 0.15;
     float bassDrift = uAudioBass * 4.0;
     pos.x += sin(t + position.z * 0.05) * 3.5 + cos(t * 1.3 + position.y * 0.04) * 2.0;
@@ -200,11 +199,11 @@ const mandalaFragmentShader = `
 function CameraRig() {
   // --- CONTROLS ---
   const homePos = new THREE.Vector3(-1, 1.7, 20);
-  const radius = 11.5;       // <--- INCREASE THIS for a bigger circle
-  const driftSpeed = 1.0;   // How fast it completes the circle
-  const startDelay = 17;    // Your intro zoom buffer
-  const moveDuration = 7.5;   // 5 seconds of movement
-  const totalCycle = 30;    // 30 second loop
+  const radius = 11.5;
+  const driftSpeed = 1.0;
+  const startDelay = 17;
+  const moveDuration = 7.5;
+  const totalCycle = 30;
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
@@ -212,24 +211,15 @@ function CameraRig() {
 
     const cycleTime = (t - startDelay) % totalCycle;
 
-    // 1. CREATE A SMOOTH ENVELOPE (0 to 1 and back to 0)
-    // This prevents the "hard cut" at the start and end of the 5s.
     let alpha = 0;
     if (cycleTime < moveDuration) {
-      // Use a sine wave to create a smooth ramp up and ramp down
-      // cycleTime / moveDuration goes 0 -> 1 over 5 seconds
-      alpha = Math.sin((cycleTime / moveDuration) * Math.PI); 
+      alpha = Math.sin((cycleTime / moveDuration) * Math.PI);
     }
 
-    // 2. CALCULATE THE CIRCLE
-    // We use a constant angle, but multiply the result by our "alpha" fader.
     const angle = t * driftSpeed;
     const offX = Math.cos(angle) * radius * alpha;
     const offY = Math.sin(angle) * radius * alpha;
 
-    // 3. APPLY TO CAMERA
-    // When alpha is 0, this is exactly homePos. 
-    // As alpha grows, it pushes the camera into the circle smoothly.
     state.camera.position.x = homePos.x + offX;
     state.camera.position.y = homePos.y + offY;
     state.camera.position.z = homePos.z;
@@ -238,7 +228,7 @@ function CameraRig() {
   });
 
   return null;
-} 
+}
 
 function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
   const groupRef = useRef<THREE.Group>(null);
@@ -273,7 +263,7 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
     const tempDists: number[] = [];
     const borderSegments: THREE.Vector3[][] = [];
     const internalSegments: THREE.Vector3[][] = [];
-   
+
     const dummy = new THREE.Object3D();
     let seed = 123.456;
     const stableRandom = () => {
@@ -285,7 +275,7 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
       const scale = 0.3 + stableRandom() * 0.7;
       dummy.scale.setScalar(scale);
       dummy.updateMatrix();
-     
+
       tempMatrices.push(dummy.matrix.clone());
       tempTypes.push(type);
       tempDists.push(pos.length() / 15.0);
@@ -317,13 +307,13 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
         const x = Math.cos(t) * r;
         const y = Math.sin(t) * r;
         const zEnd = (r / 16) * 8;
-       
+
         for (let step = 0; step < 8; step++) {
           const lerp = step / 7;
           const pX = x * lerp;
           const pY = y * lerp;
           const pZ = -10 + (zEnd - (-10)) * lerp;
-         
+
           const scatter = () => (stableRandom() - 0.5) * 0.2;
           addParticle(new THREE.Vector3(pX + scatter(), pY + scatter(), pZ + scatter()), 1.0);
         }
@@ -368,7 +358,7 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
   useFrame((state) => {
     const time = state.clock.elapsedTime;
     const { bass, mids, highs } = getThreeBands(audioData);
-   
+
     const introProgress = Math.min(time / 11.0, 1.0);
     const ease = introProgress * introProgress * (3.0 - 2.0 * introProgress);
     const currentScale = 0.01 + ease * 0.99;
@@ -388,7 +378,7 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
       const moveRadius = 0.2;
       const moveSpeed = 0.6;
       const audioInfluence = 1.0 + (bass * 0.5 * isActive);
-     
+
       mainMatRef.current.uniforms.uOriginOffset.value.set(
         Math.cos(time * moveSpeed) * moveRadius * audioInfluence,
         Math.sin(time * moveSpeed) * moveRadius * audioInfluence
@@ -402,10 +392,6 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
 
     const midIntensity = mids * isActive;
 
-    // ──────────────────────────────────────────────────────────────
-    // OUTER TUBES: STRICTLY BLUE — 100% of the time (no white ever)
-    // Tightened everything so it never blows out, even on audio peaks
-    // ──────────────────────────────────────────────────────────────
     const blueHue = 0.58 + Math.sin(time * 1.4) * 0.04;
     const blueLightness = 0.38 + Math.sin(time * 2.4) * 0.09 + midIntensity * 0.09;
     borderMaterial.color.setHSL(blueHue, 0.94, Math.min(0.52, blueLightness));
@@ -434,7 +420,6 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
       <group ref={centerGroupRef}>
         {borderSegments.map((points, i) => (
           <group key={`border-${i}`}>
-            {/* FAT BLACK OUTLINE */}
             <mesh>
               <tubeGeometry
                 args={[
@@ -448,7 +433,6 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
               <primitive object={outlineMaterial} attach="material" />
             </mesh>
 
-            {/* THIN COLORED TUBE (now locked to pure blue shades) */}
             <mesh>
               <tubeGeometry
                 args={[
@@ -485,22 +469,20 @@ function SacredMandala({ audioData }: { audioData: Uint8Array | null }) {
   );
 }
 
-export default function Mandala() {
-  const audioData = useAudioData();
-
+/**
+ * Mandala - Complex sacred geometry visualizer
+ * This component should be used inside a VisualizerViewport
+ */
+export default function Mandala({ audioData }: { audioData: Uint8Array | null }) {
   return (
-    <div style={{ position: "absolute", inset: 0, background: "#010103" }}>
-      <Canvas camera={{ position: [-1, 1.7, 20], fov: 45 }}>
-        {/* The Rig must be inside the Canvas to access the camera */}
-        <CameraRig />
-        
-        <LuminousHaze audioData={audioData} />
-        <BackgroundParticles />
-        <SacredMandala audioData={audioData} />
-        
-        {/* Keep OrbitControls for manual adjustment when not rotating */}
-        <OrbitControls enablePan={false} maxDistance={50} minDistance={10} />
-      </Canvas>
-    </div>
+    <>
+      <CameraRig />
+
+      <LuminousHaze audioData={audioData} />
+      <BackgroundParticles />
+      <SacredMandala audioData={audioData} />
+
+      <OrbitControls enablePan={false} maxDistance={50} minDistance={10} />
+    </>
   );
 }

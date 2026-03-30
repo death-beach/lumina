@@ -2,7 +2,7 @@
 
 ### _A Visual Album Player for Independent Artists_
 
-> Lumina is a standalone, one-deploy digital experience that turns a musician's album into a cinematic, interactive journey — combining buttery-smooth audio playback, per-track reactive 3D visuals or baked music videos, timed lyrics, and an integrated merch store. It's not a streaming app. It's a _world_. Artists sell access to their world. You sell the ability to build that world for them.
+> Lumina is a standalone, one-deploy digital experience that turns a musician's album into a cinematic, interactive journey — combining buttery-smooth audio playback, per-track reactive 3D visuals or baked music videos, timed lyrics, and a link out to a merch store. It's not a streaming app. It's a _world_. Artists sell access to their world. You sell the ability to build that world for them.
 
 ---
 
