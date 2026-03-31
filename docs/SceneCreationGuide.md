@@ -2,13 +2,16 @@
 
 ## Quick Start
 
-1. **Copy the prompt template from `ImmersiveScentePrompt.md`**
-2. **Paste into favorite AI (Gemini, Claude, Grok) and answer the questions it asks**
-3. **Generate the component code**
-4. **Register your scene in `VisualizerManager.tsx` (follow instrucitons in `Use_New_Visualizer_Inst.md1`)**
-5. **Add to `lib/config.ts` enum (follow instrucitons in `Use_New_Visualizer_Inst.md1`)**
-6. **Use in `lumina.config.ts` (follow instrucitons in `Use_New_Visualizer_Inst.md1`)**
-7. **Refine your visualizer by using the SceneRefinePrompt.md**
+1. **Copy the prompt from `docs/LuminaScenePrompt.md`** ← this is the canonical prompt
+2. **Paste into your AI of choice (Claude, Gemini, Grok, ChatGPT)**
+3. **Answer the 5 interview questions the AI asks you**
+4. **Save the generated file to `components/visualizer/YourSceneName.tsx`**
+5. **Register the scene** (follow `Use_New_Visualizer_Inst.md` for all 3 registration steps)
+6. **Refine** using `ImmersiveSceneRefinePrompt.md` if needed
+
+> **Note:** `ScenePrompt.md` and `ImmersiveScenePrompt.md` are older versions kept for reference.
+> Always use `LuminaScenePrompt.md` for new scenes — it uses the correct inline seeded-random
+> pattern that matches the actual working visualizers in this codebase.
 
 ## Scene Registration
 

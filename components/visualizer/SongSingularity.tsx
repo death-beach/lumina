@@ -1,9 +1,8 @@
 "use client";
 
-import { useRef, useMemo, useState, useEffect } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useRef, useMemo } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { usePlayerStore } from "@/store/playerStore";
 
 // Suppress THREE.Clock deprecation warning (R3F internal, harmless)
 const originalWarn = console.warn;
@@ -353,70 +352,12 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
   );
 }
 
-// ── AUDIO DATA HOOK ──────────────────────────────────────────────────────────
-function useAudioData(): Uint8Array | null {
-  const analyserNode = usePlayerStore(s => s.analyserNode);
-  const [audioData, setAudioData] = useState<Uint8Array | null>(null);
-  const lastUpdateRef = useRef(0);
-
-  useEffect(() => {
-    if (!analyserNode) {
-      setTimeout(() => setAudioData(null), 0);
-      return;
-    }
-
-    const dataArray = new Uint8Array(analyserNode.frequencyBinCount);
-
-    const updateData = () => {
-      const now = Date.now();
-      // Throttle updates to ~30fps to avoid excessive re-renders
-      if (now - lastUpdateRef.current > 33) {
-        analyserNode.getByteFrequencyData(dataArray);
-        setAudioData(new Uint8Array(dataArray));
-        lastUpdateRef.current = now;
-      }
-      requestAnimationFrame(updateData);
-    };
-
-    updateData();
-  }, [analyserNode]);
-
-  return audioData;
-}
-
 // ── EXPORT ────────────────────────────────────────────────────────────────────
-export default function SongSingularity() {
-  const [isMobile, setIsMobile] = useState(false);
-  const audioData = useAudioData();
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
+export default function SongSingularity({ audioData }: { audioData: Uint8Array | null }) {
   return (
-    <div style={{
-      position: "absolute",
-      inset: 0,
-      zIndex: 0,
-      background: "#0a0a0a",
-      overflow: "hidden"
-    }}>
-      <Canvas
-        camera={{ position: [0, 0, 12], fov: 45 }}
-        dpr={[1, isMobile ? 1.5 : 2]}
-      >
-        <fog attach="fog" args={["#0a0a0a", 5, 25]} />
-        <Scene audioData={audioData} />
-      </Canvas>
-      <div style={{
-        position: "absolute",
-        inset: 0,
-        background: "linear-gradient(to bottom, transparent 40%, #0f0f0f 100%)",
-        pointerEvents: "none",
-      }} />
-    </div>
+    <>
+      <fog attach="fog" args={["#0a0a0a", 5, 25]} />
+      <Scene audioData={audioData} />
+    </>
   );
 }

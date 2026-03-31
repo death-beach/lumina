@@ -1,188 +1,109 @@
 # Adding a New Visualizer to Lumina
 
-Follow these four steps in order. All paths are relative to the project root.
+Four steps. Do them in order.
 
 ---
 
-## QUICK START
+## Step 1 — Generate the component
 
-1. Create and Add the visualizer to components/visualizer
-2. Add the visualizer as an option for tracks in `lib/config.ts`
+Use `docs/LuminaScenePrompt.md` to generate your scene with an AI (Claude, Gemini, Grok, ChatGPT).
 
-- Find the `ReactiveVisualSchema` and add your scene to the list
-- scene: z.enum(["particles", "waveform", "nebula", "ronin"]).optional(),
+Save the generated file to:
 
-3. Add to the SCENE_MAP in VisualizerManager `components/visualizer/VisualizerManager.tsx`
-
-- import scenename from "./scenename";
-- const SCENE_MAP: Record<string, React.ComponentType> = {
-  particles: SongSingularity,
-  waveform: WaveForm,
-  ronin: RoninMaxilism,
-  "your-key": YourVisualizer, // ← add this line
-  };
-
-4. Find the track and Assign it in `lumina.config.ts`
-
-- {
-  id: "track-03",
-  title: "My Track",
-  src: "/tracks/track3.mp3",
-  visual: {
-  type: "reactive",
-  scene: "your-key", // ← matches the key added in Steps 2 & 3
-  },
-
-## Step 1 — Create the component file
-
-**Location:** `components/visualizer/YourVisualizer.tsx`
-
-Every visualizer follows the same contract:
-
-```tsx
-"use no memo";
-// ↑ Required — opts this file out of the React Compiler.
-// All visualizer files must include this. Without it, the compiler rejects
-// standard Three.js imperative patterns (InstancedMesh mutations, etc.).
-
-"use client";
-
-import { Canvas, useFrame } from "@react-three/fiber";
-import { getThreeBands } from "@/lib/audioAnalysis";
-import { useAudioData } from "@/hooks/useAudioData";
-
-// Inner scene component — receives pre-fetched audioData as a prop.
-// All Three.js / R3F work lives here. Do NOT call useAudioData() inside here.
-function Scene({ audioData }: { audioData: Uint8Array | null }) {
-  useFrame((state) => {
-    const { bass, mids, highs } = getThreeBands(audioData);
-    // bass  → low-end energy [0, 1]  — kicks, subs
-    // mids  → mid energy    [0, 1]  — vocals, snare
-    // highs → high energy   [0, 1]  — cymbals, air
-  });
-
-  return <>{/* your scene elements */}</>;
-}
-
-// Root export — fetches audio data and owns the Canvas.
-export default function YourVisualizer() {
-  const audioData = useAudioData();
-
-  return (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        zIndex: 0,
-        background: "#000",
-        overflow: "hidden",
-      }}
-    >
-      <Canvas camera={{ position: [0, 0, 10], fov: 60 }}>
-        <Scene audioData={audioData} />
-      </Canvas>
-    </div>
-  );
-}
 ```
-
-### Rules to follow
-
-- **No own `AudioContext` or `analyserNode`.** The project's shared Howler analyser is already wired — just call `useAudioData()`.
-- **No `requestAnimationFrame` loop.** R3F's `useFrame` handles the render loop.
-- **No `OrbitControls`** for background visualizers (camera should be fixed).
-- **Seeded PRNG instead of `Math.random()`** inside `useMemo` (the React compiler flags `Math.random` as impure). Use the pattern below:
-  ```ts
-  let seed = 12345;
-  const rand = () => {
-    seed = (seed * 9301 + 49297) % 233280;
-    return seed / 233280;
-  };
-  ```
-- If you need bloom/post-processing, use `@react-three/postprocessing` (already installed):
-  ```tsx
-  import { EffectComposer, Bloom } from "@react-three/postprocessing";
-  // Place <EffectComposer> inside <Canvas>, after your scene elements.
-  ```
-
----
-
-## Step 2 — Add the scene key to the config enum
-
-**File:** `lib/config.ts`
-
-Find the `ReactiveVisualSchema` and add your key to the enum:
-
-```ts
-// Before
-scene: z.enum(["particles", "waveform", "nebula", "ronin"]).optional(),
-
-// After — add your key
-scene: z.enum(["particles", "waveform", "nebula", "ronin", "your-key"]).optional(),
+components/visualizer/YourSceneName.tsx
 ```
 
 ---
 
-## Step 3 — Register in VisualizerManager
+## Step 2 — Register it in VisualizerManager
 
 **File:** `components/visualizer/VisualizerManager.tsx`
 
-Import your component and add it to `SCENE_MAP`:
+Add an import at the top with the other scene imports:
 
 ```ts
-import YourVisualizer from "./YourVisualizer";
+import YourSceneName from "./YourSceneName";
+```
 
-const SCENE_MAP: Record<string, React.ComponentType> = {
+Then add your scene to `SCENE_MAP`:
+
+```ts
+const SCENE_MAP: Record<
+  string,
+  React.ComponentType<{ audioData: Uint8Array | null }>
+> = {
   particles: SongSingularity,
-  waveform: WaveForm,
-  ronin: RoninMaxilism,
-  "your-key": YourVisualizer, // ← add this line
+  tesseract: BreathingTesseract,
+  pillar: Pillar,
+  sloworbit: SlowOrbit,
+  animal: Animal,
+  flower: Flower,
+  mandala: Mandala,
+  auroraplanet: AuroraPlanet,
+  city: City,
+  "your-key": YourSceneName, // ← add this line
 };
+```
+
+Pick a short, lowercase key with no spaces. You'll use it in the next two steps.
+
+---
+
+## Step 3 — Add the key to the config enum
+
+**File:** `lib/config.ts`
+
+Find `ReactiveVisualSchema` and add your key to the enum:
+
+```ts
+// Before
+scene: z.enum(["particles", "tesseract", "pillar", "sloworbit", "animal", "flower", "mandala", "auroraplanet", "city"]).optional(),
+
+// After
+scene: z.enum(["particles", "tesseract", "pillar", "sloworbit", "animal", "flower", "mandala", "auroraplanet", "city", "your-key"]).optional(),
 ```
 
 ---
 
-## Step 4 — Assign to a track in lumina.config.ts
+## Step 4 — Assign it to a track
 
 **File:** `lumina.config.ts`
 
-Set `visual.scene` on the track you want to use it:
+Set `visual.scene` on whichever track should use your visualizer:
 
 ```ts
 {
-  id: "track-03",
+  id: "track-01",
   title: "My Track",
-  src: "/tracks/track3.mp3",
+  src: "/tracks/mytrack.mp3",
   visual: {
     type: "reactive",
-    scene: "your-key",   // ← matches the key added in Steps 2 & 3
+    scene: "your-key",  // ← matches the key from Steps 2 & 3
   },
 },
 ```
 
 ---
 
-## Audio band reference
+## Done
 
-All values come from `getThreeBands(audioData)` and are normalised to **[0, 1]**. They use crossover rolloff weighting so bands don't bleed into each other.
+Run `npm run dev` and play the track. Your scene should appear.
 
-| Band    | Frequency range  | What it tracks         | Typical use              |
-| ------- | ---------------- | ---------------------- | ------------------------ |
-| `bass`  | 0 – 275 Hz       | Kick drum, sub-bass    | Scale pulse, chaos, beat |
-| `mids`  | 320 Hz – 3.5 kHz | Vocals, snare, guitars | Amplitude, brightness    |
-| `highs` | 3.5 – 20 kHz     | Cymbals, hi-hats, air  | Speed, glow, sparkle     |
-
-Helper functions are also exported from `lib/audioAnalysis.ts` if you need finer control:
-
-- `binPeak(data, lo, hi)` — peak bin value in a range
-- `binAvg(data, lo, hi)` — average bin value in a range
-- `weightedBandEnergy(data, ranges, noiseFloor)` — custom weighted energy with noise gate
+If the build throws a React Compiler error, check `docs/LuminaScenePrompt.md` — the two most common causes are `Math.random()` inside a component, or directly mutating a `uniforms` object instead of going through `materialRef.current`.
 
 ---
 
-## Checklist
+## Current scene keys
 
-- [ ] `components/visualizer/YourVisualizer.tsx` created
-- [ ] Scene key added to enum in `lib/config.ts`
-- [ ] Imported + added to `SCENE_MAP` in `VisualizerManager.tsx`
-- [ ] Track assigned `scene: "your-key"` in `lumina.config.ts`
+| Key            | File                   |
+| -------------- | ---------------------- |
+| `particles`    | SongSingularity.tsx    |
+| `tesseract`    | BreathingTesseract.tsx |
+| `pillar`       | Pillar.tsx             |
+| `sloworbit`    | SlowOrbit.tsx          |
+| `animal`       | Animal.tsx             |
+| `flower`       | Flower.tsx             |
+| `mandala`      | Mandala.tsx            |
+| `auroraplanet` | AuroraPlanet.tsx       |
+| `city`         | City.tsx               |

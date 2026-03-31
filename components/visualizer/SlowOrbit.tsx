@@ -1,12 +1,11 @@
 "use no memo";
 "use client";
 
-import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
+import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
 import { useMemo, useRef, useLayoutEffect } from "react";
 import { getThreeBands } from "@/lib/audioAnalysis";
-import { useAudioData } from "@/hooks/useAudioData";
 
 function Scene({ audioData }: { audioData: Uint8Array | null }) {
   const pointsRef = useRef<THREE.Points>(null!);
@@ -304,22 +303,12 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
   );
 }
 
-export default function SlowOrbit() {
-  const audioData = useAudioData();
-
+export default function SlowOrbit({ audioData }: { audioData: Uint8Array | null }) {
   return (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        zIndex: 0,
-        background: "#000",
-        overflow: "hidden",
-      }}
-    >
-      <Canvas camera={{ position: [0, 4.5, 35], fov: 55 }} gl={{ antialias: true }}>
-        <Scene audioData={audioData} />
-      </Canvas>
-    </div>
+    <>
+      <color attach="background" args={["#000"]} />
+      <PerspectiveCamera makeDefault position={[0, 4.5, 35]} fov={55} />
+      <Scene audioData={audioData} />
+    </>
   );
 }

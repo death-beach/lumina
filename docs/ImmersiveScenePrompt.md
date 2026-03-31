@@ -122,6 +122,7 @@ Scenes are **inner components only**. The `<Canvas>` and wrapper `<div>` are han
 2. **THE FOCAL POINT:** What is the central structure? (e.g., "A pulsing geometric core," "15,000 floating light-spires," "A liquid-mercury river")
 3. **THE ATMOSPHERE:** What layers the background? (e.g., "Reactive Nebula," "Strobe-heavy Starfield," "Thick Volumetric Haze")
 4. **THE PALETTE:** What are the primary, accent, and background colors?
+5. **AUDIO:** What does the bass effect when it plays? What do the high effect when they play?
 
 ---
 
@@ -143,6 +144,7 @@ Scenes are **inner components only**. The `<Canvas>` and wrapper `<div>` are han
 "use client";
 
 import { useFrame } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
 import { getThreeBands } from "@/lib/audioAnalysis";
 import { useRef, useMemo } from "react";
 import * as THREE from "three";
@@ -188,8 +190,57 @@ export default function YourSceneName({
     }
   });
 
-  return <>{/* R3F elements ONLY — no Canvas, no divs */}</>;
+  return (
+    <>
+      {/* R3F elements ONLY — no Canvas, no divs */}
+
+      {/* REQUIRED: Always include OrbitControls — this is what makes the scene
+          interactive (click + drag to orbit, scroll to zoom). Without this,
+          the scene is completely static and unresponsive to user input. */}
+      <OrbitControls
+        autoRotate={true}
+        autoRotateSpeed={0.5}
+        enablePan={false}
+        minDistance={8}
+        maxDistance={40}
+        makeDefault
+      />
+    </>
+  );
 }
 ```
 
+> **⚠️ ORBITCONTROLS IS MANDATORY.** Every scene MUST include `<OrbitControls makeDefault />` in its return. Without it, the user cannot interact with the scene at all — no clicking, no dragging, no zooming. This is non-negotiable.
+
 **DO NOT OUTPUT EXPLANATIONS. OUTPUT ONLY THE COMPONENT AFTER THE INTERVIEW.**
+
+# SYSTEM: THE LUMINA HIGH-FIDELITY SHADER ENGINE
+
+## 1. COMPILER-NATIVE ARCHITECTURE (STRICT)
+
+This project uses `reactCompiler: true`. To avoid build-breaking errors:
+
+- **NO CLOSURES:** Do not create functions that mutate variables outside their scope.
+- **TYPED SEEDING:** Use `new Float32Array([seed])` inside `useMemo` to handle random generation.
+- **REF-ONLY MUTATION:** `useFrame` MUST only mutate `materialRef.current.uniforms`.
+
+## 2. THE VISUAL STANDARD: "THE VOLUMETRIC RULE"
+
+- **NO FLAT SCENES:** Every scene must have a Foreground (passing the camera), Midground (the focal point), and Background (the nebula/atmosphere).
+- **INSTANCING OVER PARTICLES:** If the user asks for "lines," "branches," or "networks," use `InstancedMesh` with a `TubeGeometry` or `CylinderGeometry` for 3D thickness.
+- **GLSL KINEMATICS:** 90% of motion must happen in the Vertex Shader using `attribute` offsets.
+
+## 3. MANDATORY INTERVIEW (PHASE 1)
+
+Ask these 4 questions before coding:
+
+1. **THE CONCEPT:** Describe the architectural "world" (e.g., A Neural Forest, A Liquid Chrome Core).
+2. **THE MOTION:** How does the world "breathe"? (e.g., Expanding, Spiraling, Exploding).
+3. **THE AUDIO MAPPING:** What specific frequency triggers the "Expansion" or "Reaction"?
+4. **THE PALETTE:** 3-color hex-code theme.
+
+## 4. ENGINEERING BOILERPLATE
+
+- Use `THREE.MathUtils.lerp` for all audio values.
+- Return ONLY R3F elements.
+- Always include `<OrbitControls makeDefault />`.

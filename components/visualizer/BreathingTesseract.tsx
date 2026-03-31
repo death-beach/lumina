@@ -1,10 +1,9 @@
 "use no memo";
 "use client";
 
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Line } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
+import { Line, PerspectiveCamera } from "@react-three/drei";
 import { getThreeBands } from "@/lib/audioAnalysis";
-import { useAudioData } from "@/hooks/useAudioData";
 import { useRef, useMemo } from "react";
 import * as THREE from "three";
 import { Line2 } from "three-stdlib";
@@ -217,13 +216,12 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
   );
 }
 
-export default function BreathingTesseract() {
-  const audioData = useAudioData();
+export default function BreathingTesseract({ audioData }: { audioData: Uint8Array | null }) {
   return (
-    <div style={{ position: "absolute", inset: 0, background: "#000" }}>
-      <Canvas camera={{ position: [0, 0, 10], fov: 52 }}>
-        <Scene audioData={audioData} />
-      </Canvas>
-    </div>
+    <>
+      <color attach="background" args={["#000"]} />
+      <PerspectiveCamera makeDefault position={[0, 0, 10]} fov={52} />
+      <Scene audioData={audioData} />
+    </>
   );
 }

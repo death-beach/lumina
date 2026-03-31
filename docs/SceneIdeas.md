@@ -44,21 +44,19 @@ All of these are **centered on the origin**, look great from the default camera 
 
 14. **Living Organism** — An amorphous blob that breathes and morphs to every beat like a heartbeat. Palette: biomorphic greens and purples.
 
-15. **Mycelium Network** — Branching glowing thread-lines spreading outward from center like a neural network. New branches on bass hits. Palette: white, soft blue, black.
-
 ---
 
 ## ⚡ Energy / Force
 
-16. **Lightning Core** — Electrical tendrils fracturing outward from a central point on transients. Palette: white, electric blue, purple.
+15. **Lightning Core** — Electrical tendrils fracturing outward from a central point on transients. Palette: white, electric blue, purple.
 
-17. **Gravity Well** — A particle field being pulled into and orbiting a glowing singularity. Orbit speed driven by mids. Palette: red, orange, black.
+16. **Gravity Well** — A particle field being pulled into and orbiting a glowing singularity. Orbit speed driven by mids. Palette: red, orange, black.
 
-18. **Plasma Tornado** — A spinning vortex of colored particles. Height and rotation speed react to bass. Palette: magenta, cyan, white.
+17. **Plasma Tornado** — A spinning vortex of colored particles. Height and rotation speed react to bass. Palette: magenta, cyan, white.
 
-19. **Lava Lamp** — Large glowing morphing blobs that slowly rise and fall. Bass-reactive size and brightness. Palette: orange, red, dark background.
+18. **Lava Lamp** — Large glowing morphing blobs that slowly rise and fall. Bass-reactive size and brightness. Palette: orange, red, dark background.
 
-20. **Prism Burst** — A central rotating prism that refracts colored particle beams outward like a disco ball. Each beam a different hue. Palette: full rainbow spectrum.
+19. **Prism Burst** — A central rotating prism that refracts colored particle beams outward like a disco ball. Each beam a different hue. Palette: full rainbow spectrum.
 
 ---
 

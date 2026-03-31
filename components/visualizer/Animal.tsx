@@ -1,10 +1,9 @@
 "use no memo";
 "use client";
 import * as THREE from "three";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
+import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { getThreeBands } from "@/lib/audioAnalysis";
-import { useAudioData } from "@/hooks/useAudioData";
 import { useMemo, useRef } from "react";
 
 const POINT_COUNT = 20500;
@@ -379,14 +378,13 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
   );
 }
 
-export default function Animal() {
-  const audioData = useAudioData();
+export default function Animal({ audioData }: { audioData: Uint8Array | null }) {
   return (
-    <div style={{ position: "absolute", inset: 0, zIndex: 0, background: "#050508", overflow: "hidden" }}>
-      <Canvas camera={{ position: [0, 0, 0.2], fov: 60 }}>
-        <Scene audioData={audioData} />
-        <OrbitControls enablePan={false} enableZoom={true} maxDistance={20} minDistance={3} />
-      </Canvas>
-    </div>
+    <>
+      <color attach="background" args={["#050508"]} />
+      <PerspectiveCamera makeDefault position={[0, 0, 0.2]} fov={60} />
+      <Scene audioData={audioData} />
+      <OrbitControls enablePan={false} enableZoom={true} maxDistance={20} minDistance={3} />
+    </>
   );
 }

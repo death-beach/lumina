@@ -2,11 +2,10 @@
 "use client";
 
 import React, { useRef, useMemo, useEffect } from 'react';
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { Cylinder, Plane } from "@react-three/drei";
 import * as THREE from "three";
 import { getThreeBands } from "@/lib/audioAnalysis";
-import { useAudioData } from "@/hooks/useAudioData";
 
 function DustCloud() {
   const meshRef = useRef<THREE.InstancedMesh>(null);
@@ -332,13 +331,11 @@ function Scene({ audioData }: { audioData: Uint8Array | null }) {
   );
 }
 
-export default function Pillar() {
-  const audioData = useAudioData();
+export default function Pillar({ audioData }: { audioData: Uint8Array | null }) {
   return (
-    <div style={{ position: "absolute", inset: 0, zIndex: 0, background: "#000", overflow: "hidden" }}>
-      <Canvas camera={{ position: [0, 22, 38], fov: 48 }} gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }} style={{ background: '#030105' }}>
-        <Scene audioData={audioData} />
-      </Canvas>
-    </div>
+    <>
+      <color attach="background" args={["#030105"]} />
+      <Scene audioData={audioData} />
+    </>
   );
 }
