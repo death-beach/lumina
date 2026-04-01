@@ -2,7 +2,7 @@
 "use client";
 
 import * as THREE from "three";
-import { useMemo, useRef, useLayoutEffect } from "react";
+import { useMemo, useRef, useLayoutEffect, useEffect } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { getThreeBands } from "@/lib/audioAnalysis";
@@ -53,7 +53,7 @@ function BackgroundShimmer({
 
   useFrame((state) => {
     if (materialRef.current) {
-      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
+      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime % 1000;
       materialRef.current.uniforms.uMids.value = smoothMids.current;
     }
   });
@@ -115,7 +115,7 @@ function PrismCore({
 
   useFrame((state) => {
     if (materialRef.current) {
-      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
+      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime % 1000;
     }
     if (groupRef.current) {
       groupRef.current.rotation.y = state.clock.elapsedTime * 0.5;
@@ -258,7 +258,7 @@ function RefractedBeams({
     }
 
     if (materialRef.current) {
-      materialRef.current.uniforms.uTime.value = elapsed;
+      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime % 1000;
       materialRef.current.uniforms.uHighs.value = smoothHighs.current;
       materialRef.current.uniforms.uBass.value = smoothBass.current;
       materialRef.current.uniforms.uStrobeActive.value = strobeActive;
@@ -358,12 +358,21 @@ function RefractedBeams({
 }
 
 // ── ROOT SCENE ─────────────────────────────────────────────────────────────
+// ── ROOT SCENE (FINAL FIX — stops the audio from dying) ─────────────────────────────────────────────────────────────
 export default function PrismBurstScene({ audioData }: { audioData: Uint8Array | null }) {
   const smoothBass = useRef(0);
   const smoothMids = useRef(0);
   const smoothHighs = useRef(0);
   const worldRef = useRef<THREE.Group>(null!);
+  const containerRef = useRef<THREE.Group>(null!);
   const { camera } = useThree();
+
+  // Hard Spin State
+  const lastSpinTime = useRef(0);
+  const isSpinning = useRef(false);
+
+  // ←←← THIS IS THE FIX
+  const audioDataRef = useRef<Uint8Array | null>(null);
 
   useLayoutEffect(() => {
     camera.position.set(0, 0, 40);
@@ -371,16 +380,46 @@ export default function PrismBurstScene({ audioData }: { audioData: Uint8Array |
   }, [camera]);
 
   useFrame((state, delta) => {
-    const { bass, mids, highs } = getThreeBands(audioData);
+    // Keep audioData fresh every single frame
+    if (audioData !== audioDataRef.current) {
+      audioDataRef.current = audioData;
+    }
+
+    const currentAudio = audioDataRef.current;
+    const { bass, mids, highs } = getThreeBands(currentAudio);
+
     smoothBass.current = THREE.MathUtils.lerp(smoothBass.current, bass, delta * 12);
     smoothMids.current = THREE.MathUtils.lerp(smoothMids.current, mids, delta * 10);
     smoothHighs.current = THREE.MathUtils.lerp(smoothHighs.current, highs, delta * 15);
 
+    const elapsed = state.clock.elapsedTime;
+    
+    // Check 30s interval
+    if (elapsed % 30 < delta * 2 && elapsed - lastSpinTime.current > 15) {
+      lastSpinTime.current = elapsed;
+      isSpinning.current = true;
+    }
+
     if (worldRef.current) {
-      const time = state.clock.elapsedTime;
       const rotationSpeed = 0.04 + smoothHighs.current * 0.15;
       worldRef.current.rotation.y += delta * rotationSpeed;
-      worldRef.current.rotation.x = Math.sin(time * 0.2) * 0.2;
+      worldRef.current.rotation.x = Math.sin(elapsed * 0.2) * 0.2;
+    }
+
+    // Camera Hard Spin (10 rapid rotations over 2 seconds)
+    if (containerRef.current) {
+      if (isSpinning.current) {
+        const spinDuration = 2.0;
+        const age = elapsed - lastSpinTime.current;
+        if (age > spinDuration) {
+          isSpinning.current = false;
+          containerRef.current.rotation.y = 0; // Reset
+        } else {
+          const progress = age / spinDuration;
+          const totalRotation = Math.PI * 2 * 10; // 10 full spins
+          containerRef.current.rotation.y = progress * totalRotation;
+        }
+      }
     }
   });
 
@@ -388,10 +427,13 @@ export default function PrismBurstScene({ audioData }: { audioData: Uint8Array |
     <>
       <color attach="background" args={["#000000"]} />
       <ambientLight intensity={0.2} />
-      <group ref={worldRef}>
-        <BackgroundShimmer smoothMids={smoothMids} />
-        <PrismCore smoothBass={smoothBass} />
-        <RefractedBeams smoothHighs={smoothHighs} smoothBass={smoothBass} />
+      {/* Container group allows camera-perspective spinning without breaking world logic */}
+      <group ref={containerRef}>
+        <group ref={worldRef}>
+          <BackgroundShimmer smoothMids={smoothMids} />
+          <PrismCore smoothBass={smoothBass} />
+          <RefractedBeams smoothHighs={smoothHighs} smoothBass={smoothBass} />
+        </group>
       </group>
       <OrbitControls makeDefault enablePan={false} minDistance={10} maxDistance={100} />
     </>
