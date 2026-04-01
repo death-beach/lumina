@@ -26,7 +26,7 @@ const config: LuminaConfig = {
       src: "/tracks/01 Motor Boat.mp3",
       visual: {
         type: "reactive",
-        scene: "city",
+        scene: "prism",
       },
     },
     {
