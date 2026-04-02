@@ -290,19 +290,20 @@ function RefractedBeams({
           attribute float aBeamIndex;
           varying float vBeamIndex;
           varying float vDistance;
+          varying float vCurrentDist;
           varying float vGlimmer;
           
           void main() {
             vBeamIndex = aBeamIndex;
             vDistance = aDistance;
             
-            float baseRadius = 2.0 * (1.0 + uBass * 0.8);
+            float baseRadius = 1.0 * (1.0 + uBass * 0.8);
             float currentDist = mod(aDistance + uTime * (12.0 + uHighs * 20.0), uMaxDistance);
             vGlimmer = sin(aDistance * 10.0 - uTime * 20.0) * uHighs;
-            
+
             float theta = aAngle.x;
             float phi = aAngle.y;
-            float r = baseRadius + currentDist;
+            float r = baseRadius + 1.75 + currentDist;   // ← teeny tiny gap added here
             
             vec3 pos;
             pos.x = r * sin(phi) * cos(theta);
