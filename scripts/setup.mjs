@@ -161,7 +161,7 @@ const VISUALIZER_SEQUENCE = [
 
 header("Visualizer Assignment");
 print(`  ${DIM}MP3 tracks will automatically get visualizers in this order:${RESET}`);
-print(`  ${DIM}1. translation, 2. particles, 3. mandala, 4. flower, 6. sloworbit, 7. sloworbit, 8. tesseract, 9. pillar, 10. animal${RESET}`);
+print(`  ${DIM}1. translation, 2. particles, 3. mandala, 4. flower, 5. auroraplanet, 6. sloworbit, 7. tesseract, 8. pillar, 9. animal${RESET}`);
 print(`  ${DIM}The sequence repeats for additional MP3 tracks.${RESET}`);
 print(`  ${DIM}Video tracks will use their video as the visualizer.${RESET}`);
 print("");

@@ -51,13 +51,13 @@ export function VisualizerManager() {
   }
 
   const visual = currentTrack?.visual;
-  const sceneType = visual?.type === "reactive" ? visual.scene : "particles";
+  const sceneType = visual?.type === "reactive" ? visual.scene : "translation";
 
-  const VisualizerComponent = SCENE_MAP[sceneType || "particles"] || SongSingularity;
+  const VisualizerComponent = SCENE_MAP[sceneType || "translation"] || Translation;
 
   // Wrap the scene in the permanent Viewport and pass audioData
   return (
-    <VisualizerViewport>
+    <VisualizerViewport key={sceneType}>
       <VisualizerComponent audioData={audioData} />
     </VisualizerViewport>
   );
