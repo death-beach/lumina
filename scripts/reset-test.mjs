@@ -50,16 +50,16 @@ const config: LuminaConfig = {
       src: "/tracks/track1.mp3",
       visual: {
         type: "reactive",
-        scene: "particles",
+        scene: "translation",
       },
     },
     {
       id: "track-02",
-      title: "NFT Song",
+      title: "track two",
       src: "/tracks/track2.mp3",
       visual: {
         type: "reactive",
-        scene: "pillar",
+        scene: "particles",
       },
     }
   ],

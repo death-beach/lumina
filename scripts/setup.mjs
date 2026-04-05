@@ -148,19 +148,20 @@ const albumTitle = await ask("Album title", "");
 // ── Visualizer Assignment System ─────────────────────────────────────────────
 // Define the fixed visualizer sequence for MP3 tracks
 const VISUALIZER_SEQUENCE = [
-  "particles",   // Track 1
-  "mandala",     // Track 2  
-  "flower",      // Track 3
-  "auroraplanet", // Track 4
-  "sloworbit",   // Track 5
-  "tesseract",   // Track 6
-  "pillar",      // Track 7
-  "animal"       // Track 8
+  "translation",   // Track 1
+  "particles",
+  "mandala",     // Track 4
+  "flower",      // Track 5
+  "auroraplanet", // Track 6
+  "sloworbit",   // Track 7
+  "tesseract",   // Track 8
+  "pillar",      // Track 9
+  "animal"       // Track 10
 ];
 
 header("Visualizer Assignment");
 print(`  ${DIM}MP3 tracks will automatically get visualizers in this order:${RESET}`);
-print(`  ${DIM}1. particles, 2. mandala, 3. flower, 4. sloworbit, 5. tesseract, 6. pillar, 7. animal${RESET}`);
+print(`  ${DIM}1. translation, 2. particles, 3. mandala, 4. flower, 6. sloworbit, 7. sloworbit, 8. tesseract, 9. pillar, 10. animal${RESET}`);
 print(`  ${DIM}The sequence repeats for additional MP3 tracks.${RESET}`);
 print(`  ${DIM}Video tracks will use their video as the visualizer.${RESET}`);
 print("");

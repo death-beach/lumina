@@ -14,6 +14,7 @@ import Flower from "./Flower";
 import Mandala from "./Mandala";
 import AuroraPlanet from "./AuroraPlanet";
 import Prism from "./PrismBurst";
+import Translation from "./Translation"
 
 
 const SCENE_MAP: Record<string, React.ComponentType<{ audioData: Uint8Array | null }>> = {
@@ -28,6 +29,7 @@ const SCENE_MAP: Record<string, React.ComponentType<{ audioData: Uint8Array | nu
   mandala: Mandala,
   auroraplanet: AuroraPlanet,
   prism: Prism,
+  translation: Translation,
 };
 
 export function VisualizerManager() {
