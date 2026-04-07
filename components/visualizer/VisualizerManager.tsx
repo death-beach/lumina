@@ -15,8 +15,7 @@ import Mandala from "./Mandala";
 import AuroraPlanet from "./AuroraPlanet";
 import Prism from "./PrismBurst";
 import Translation from "./Translation";
-import Dimensional from "./dimensional";
-
+import Dimensional from "./Dimensional"
 
 const SCENE_MAP: Record<string, React.ComponentType<{ audioData: Uint8Array | null }>> = {
   particles: SongSingularity,

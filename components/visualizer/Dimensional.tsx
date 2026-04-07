@@ -4,310 +4,86 @@
 import * as THREE from "three";
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { getThreeBands } from "@/lib/audioAnalysis";
 
-// ── LAYER 1: HYPERDIMENSIONAL FRACTAL LATTICE & HEX CORE ───────────────────
-function HexFractalCore({
+// ── Layer 1: Starry space background (10k particles) ───────────────────────
+function Stars({
   audioData,
-  smoothBass,
   smoothHighs,
-  bloomPhase,
 }: {
   audioData: Uint8Array | null;
-  smoothBass: React.MutableRefObject<number>;
   smoothHighs: React.MutableRefObject<number>;
-  bloomPhase: React.MutableRefObject<number>;
 }) {
-  const groupRef = useRef<THREE.Group>(null!);
+  const pointsRef = useRef<THREE.Points>(null!);
   const materialRef = useRef<THREE.ShaderMaterial>(null!);
 
-  const { positions, randoms } = useMemo(() => {
-    let seed = 11111;
+  const { positions } = useMemo(() => {
+    let seed = 12345;
     const rnd = () => {
       seed = (seed * 9301 + 49297) % 233280;
       return seed / 233280;
     };
 
-    const count = 10000;
-    const pos = new Float32Array(count * 3);
-    const rands = new Float32Array(count);
-
-    for (let i = 0; i < count; i++) {
-      // Distributed within a large spherical volume to be folded by the fractal shader
-      pos[i * 3] = (rnd() - 0.5) * 45;
-      pos[i * 3 + 1] = (rnd() - 0.5) * 45;
-      pos[i * 3 + 2] = (rnd() - 0.5) * 45;
-      rands[i] = rnd();
-    }
-    return { positions: pos, randoms: rands };
-  }, []);
-
-  const uniforms = useMemo(
-    () => ({
-      uTime: { value: 0 },
-      uBass: { value: 0 },
-      uHighs: { value: 0 },
-      uBloom: { value: 0 },
-    }),
-    []
-  );
-
-  const vertexShader = `
-    uniform float uTime;
-    uniform float uBass;
-    uniform float uHighs;
-    uniform float uBloom;
-    attribute float aRandom;
-    varying vec3 vColor;
-
-    vec2 rotate(vec2 p, float a) {
-      float s = sin(a), c = cos(a);
-      return vec2(p.x * c - p.y * s, p.x * s + p.y * c);
-    }
-
-    float hexDist(vec2 p) {
-      p = abs(p);
-      float d = dot(p, normalize(vec2(1.0, 1.73205081)));
-      return max(d, p.x);
-    }
-
-    void main() {
-      vec3 p = position;
-
-      // Base slow rotation
-      p.xz = rotate(p.xz, uTime * 0.1);
-      p.yz = rotate(p.yz, uTime * 0.05);
-
-      // Hyperdimensional fractal folding
-      for(int i = 0; i < 3; i++) {
-        p.xy = rotate(p.xy, uTime * 0.1 + float(i) * 0.5);
-        p.xz = rotate(p.xz, uTime * 0.15);
-        // Bloom expands the folds, creating new symmetries
-        p = abs(p) - (2.5 + uBloom * 3.5 + uBass * 1.5);
-      }
-
-      // Hexagonal shaping and shockwave
-      float hd = hexDist(p.xy);
-      float shockwave = sin(length(position) * 0.5 - uTime * 5.0) * uBass * 2.0;
-      p.z += sin(hd * 4.0 - uTime * 2.0) * (0.5 + uBass * 3.0) + shockwave;
-
-      // Core pulsing
-      p *= 1.0 + uBass * 0.6;
-
-      // Palette mapping: Void Black to Deep Purple to Violet to Magenta
-      vec3 col1 = vec3(0.29, 0.0, 0.51); // #4B0082 Deep Purple
-      vec3 col2 = vec3(0.54, 0.17, 0.89); // #8A2BE2 Violet
-      vec3 col3 = vec3(1.0, 0.0, 1.0);    // #FF00FF Magenta
-
-      float tColor = fract(hd * 0.15 + uTime * 0.2 + aRandom);
-      vec3 color = mix(col1, col2, smoothstep(0.0, 0.5, tColor));
-      color = mix(color, col3, smoothstep(0.5, 1.0, tColor));
-
-      // Highs reaction: Voids flare and extreme glitter
-      float glitter = step(0.92, fract(aRandom * 20.0 + uTime * 8.0 + uHighs * 15.0)) * (1.0 + uHighs * 3.0);
-      color += vec3(glitter);
-
-      vColor = color;
-
-      vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
-      
-      // Highs make the intricate lattice details sharper/brighter
-      float pointSize = (2.0 + aRandom * 2.5) + (uHighs * 5.0) + (uBass * 3.0);
-      gl_PointSize = pointSize * (300.0 / -mvPosition.z);
-      gl_Position = projectionMatrix * mvPosition;
-    }
-  `;
-
-  const fragmentShader = `
-    varying vec3 vColor;
-    void main() {
-      float d = distance(gl_PointCoord, vec2(0.5));
-      if (d > 0.5) discard;
-      float a = 1.0 - smoothstep(0.2, 0.5, d);
-      gl_FragColor = vec4(vColor, a * 0.9);
-    }
-  `;
-
-  useFrame((state) => {
-    if (materialRef.current) {
-      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
-      materialRef.current.uniforms.uBass.value = smoothBass.current;
-      materialRef.current.uniforms.uHighs.value = smoothHighs.current;
-      materialRef.current.uniforms.uBloom.value = bloomPhase.current;
-    }
-    if (groupRef.current) {
-      groupRef.current.rotation.y = state.clock.elapsedTime * 0.05;
-    }
-  });
-
-  return (
-    <group ref={groupRef}>
-      <points>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-          <bufferAttribute attach="attributes-aRandom" args={[randoms, 1]} />
-        </bufferGeometry>
-        <shaderMaterial
-          ref={materialRef}
-          vertexShader={vertexShader}
-          fragmentShader={fragmentShader}
-          uniforms={uniforms}
-          transparent
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </points>
-    </group>
-  );
-}
-
-// ── LAYER 2: ETHEREAL JELLYFISH ENTITIES ──────────────────────────────────────
-function JellyfishEntities({
-  audioData,
-  smoothBass,
-  smoothHighs,
-  bloomPhase,
-}: {
-  audioData: Uint8Array | null;
-  smoothBass: React.MutableRefObject<number>;
-  smoothHighs: React.MutableRefObject<number>;
-  bloomPhase: React.MutableRefObject<number>;
-}) {
-  const materialRef = useRef<THREE.ShaderMaterial>(null!);
-
-  const { positions, jellyIds, trailIdxs } = useMemo(() => {
-    let seed = 88888;
-    const rnd = () => {
-      seed = (seed * 9301 + 49297) % 233280;
-      return seed / 233280;
-    };
-
-    const numJellies = 75;
-    const particlesPerJelly = 40;
-    const total = numJellies * particlesPerJelly;
-
-    const pos = new Float32Array(total * 3);
-    const p_jid = new Float32Array(total);
-    const p_tidx = new Float32Array(total);
-
-    for (let i = 0; i < numJellies; i++) {
-      const radius = 12 + rnd() * 25;
+    const COUNT = 10000;
+    const pos = new Float32Array(COUNT * 3);
+    for (let i = 0; i < COUNT; i++) {
+      const radius = 220 + rnd() * 140;
       const theta = rnd() * Math.PI * 2;
       const phi = Math.acos(rnd() * 2 - 1);
-      
-      const ox = radius * Math.sin(phi) * Math.cos(theta);
-      const oy = radius * Math.sin(phi) * Math.sin(theta);
-      const oz = radius * Math.cos(phi);
-
-      const jid = rnd();
-
-      for (let j = 0; j < particlesPerJelly; j++) {
-        const idx = i * particlesPerJelly + j;
-        const trailRatio = j / particlesPerJelly; // 0 = Core, 1 = Tail end
-
-        // Distribute trail particles slightly loosely for an organic feel
-        pos[idx * 3] = ox + (rnd() - 0.5) * trailRatio * 3;
-        pos[idx * 3 + 1] = oy + (rnd() - 0.5) * trailRatio * 3;
-        pos[idx * 3 + 2] = oz + (rnd() - 0.5) * trailRatio * 3;
-
-        p_jid[idx] = jid;
-        p_tidx[idx] = trailRatio;
-      }
+      pos[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+      pos[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+      pos[i * 3 + 2] = radius * Math.cos(phi);
     }
-    return { positions: pos, jellyIds: p_jid, trailIdxs: p_tidx };
+    return { positions: pos };
   }, []);
 
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
-      uBass: { value: 0 },
       uHighs: { value: 0 },
-      uBloom: { value: 0 },
     }),
-    []
+    [],
   );
 
   const vertexShader = `
     uniform float uTime;
-    uniform float uBass;
     uniform float uHighs;
-    uniform float uBloom;
-    attribute float aJellyId;
-    attribute float aTrailIdx;
-    varying vec3 vColor;
-
-    vec2 rotate(vec2 p, float a) {
-      float s = sin(a), c = cos(a);
-      return vec2(p.x * c - p.y * s, p.x * s + p.y * c);
-    }
+    varying float vTwinkle;
 
     void main() {
-      vec3 p = position;
+      vTwinkle = sin(uTime * 12.0 + position.x * 0.015) * 0.5 + 0.5;
+      vTwinkle = mix(0.7, 1.4, vTwinkle * uHighs);
 
-      // Organic drifting
-      p.xz = rotate(p.xz, uTime * 0.15 + aJellyId * 6.28);
-      p.y += sin(uTime * 1.5 + aJellyId * 15.0) * 3.0;
-
-      // Trail stretch dynamics driven by Highs
-      float trailStretch = 1.0 + uHighs * 4.0;
-      vec3 outward = normalize(p);
-      p -= outward * aTrailIdx * 1.5 * trailStretch;
-
-      // Bass reaction: Pull slightly inward, then blast outward
-      float pullPush = smoothstep(0.0, 0.3, uBass) * -3.0 + smoothstep(0.4, 1.0, uBass) * 8.0;
-      p += outward * pullPush;
-
-      // Event: Entities expand outward during bloom phase
-      p *= 1.0 + uBloom * 0.8;
-
-      // Palette: Cyan (#00FFFF) and Lime (#39FF14) with White-hot cores
-      vec3 cyan = vec3(0.0, 1.0, 1.0);
-      vec3 lime = vec3(0.22, 1.0, 0.08);
-      vec3 coreCol = vec3(1.0, 1.0, 1.0);
-
-      vec3 color = mix(cyan, lime, fract(aJellyId * 5.73));
-      
-      float isCore = 1.0 - smoothstep(0.0, 0.15, aTrailIdx);
-      color = mix(color, coreCol, isCore);
-
-      // Highs make entities more translucent and trails glow brighter
-      color *= (1.0 - aTrailIdx * 0.7) + (uHighs * 0.8);
-
-      vColor = color;
-
-      vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
-      float size = mix(1.5, 8.0, isCore) + uHighs * 4.0;
-      gl_PointSize = size * (300.0 / -mvPosition.z);
+      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = (2.4 + uHighs * 3.2) * (280.0 / -mvPosition.z);
       gl_Position = projectionMatrix * mvPosition;
     }
   `;
 
   const fragmentShader = `
-    varying vec3 vColor;
+    varying float vTwinkle;
     void main() {
-      float d = distance(gl_PointCoord, vec2(0.5));
+      float d = length(gl_PointCoord - vec2(0.5));
       if (d > 0.5) discard;
-      float a = 1.0 - smoothstep(0.1, 0.5, d);
-      gl_FragColor = vec4(vColor, a * 0.85);
+      gl_FragColor = vec4(vec3(0.92, 0.96, 1.0) * vTwinkle, (1.0 - d * 1.8) * 0.95);
     }
   `;
 
   useFrame((state) => {
     if (materialRef.current) {
       materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
-      materialRef.current.uniforms.uBass.value = smoothBass.current;
       materialRef.current.uniforms.uHighs.value = smoothHighs.current;
-      materialRef.current.uniforms.uBloom.value = bloomPhase.current;
     }
   });
 
   return (
-    <points>
+    <points ref={pointsRef}>
       <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-        <bufferAttribute attach="attributes-aJellyId" args={[jellyIds, 1]} />
-        <bufferAttribute attach="attributes-aTrailIdx" args={[trailIdxs, 1]} />
+        <bufferAttribute
+          attach="attributes-position"
+          args={[positions, 3]}
+        />
       </bufferGeometry>
       <shaderMaterial
         ref={materialRef}
@@ -322,8 +98,199 @@ function JellyfishEntities({
   );
 }
 
-// ── ROOT EXPORT ──────────────────────────────────────────────────────────────
-export default function HyperdimensionalHexScene({
+// ── Layer 2: Hex terrain (perfectly centered ripple origin at 0,0) ─────────
+function HexTerrain({
+  audioData,
+  smoothBass,
+  smoothMids,
+}: {
+  audioData: Uint8Array | null;
+  smoothBass: React.MutableRefObject<number>;
+  smoothMids: React.MutableRefObject<number>;
+}) {
+  const meshRef = useRef<THREE.InstancedMesh>(null!);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  
+  // Scratchpad tools for color
+  const tempColor = useMemo(() => new THREE.Color(), []);
+  const baseRed = useMemo(() => new THREE.Color(0xff2200), []);
+  const peakGlow = useMemo(() => new THREE.Color(0xffffff), []); // Bright white/orange glow
+
+  const { hexPositions, count } = useMemo(() => {
+    const positions: number[] = [];
+    const spacingX = 7.2;
+    const spacingZ = 6.23;
+    const rows = 62;
+    const cols = 62;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = (col - cols * 0.5) * spacingX + (row % 2 === 1 ? spacingX * 0.5 : 0);
+        const z = (row - rows * 0.5) * spacingZ;
+        if (Math.hypot(x, z) < 180) {
+          positions.push(x, 0, z);
+        }
+      }
+    }
+    return { hexPositions: new Float32Array(positions), count: positions.length / 3 };
+  }, []);
+
+  const hexGeometry = useMemo(() => new THREE.CylinderGeometry(2.85, 2.85, 2.6, 6, 1, false), []);
+
+  // Set base color to white so instance colors aren't tinted incorrectly
+  const material = useMemo(() => new THREE.MeshPhongMaterial({
+    color: 0xffffff, 
+    emissive: 0x220000,
+    shininess: 8,
+    flatShading: true,
+    side: THREE.DoubleSide,
+  }), []);
+
+  useFrame((state) => {
+    if (!meshRef.current) return;
+
+    const time = state.clock.elapsedTime;
+    const bass = smoothBass.current;
+    const mids = smoothMids.current;
+    const rippleSpeed = 13.5;
+    const rippleFrequency = 0.098;
+
+    for (let i = 0; i < count; i++) {
+      const x = hexPositions[i * 3];
+      const z = hexPositions[i * 3 + 2];
+      const distanceFromCenter = Math.hypot(x, z);
+
+      const wave = Math.sin(distanceFromCenter * rippleFrequency - time * rippleSpeed) * 0.5 + 0.5;
+      const height = wave * (bass * 6.0 + mids * 2.8);
+      const microVariation = Math.sin(x * 1.1 + z * 0.9 + time * 2) * 0.3;
+
+      dummy.position.set(x, height + microVariation, z);
+      dummy.updateMatrix();
+      meshRef.current.setMatrixAt(i, dummy.matrix);
+
+      // --- DYNAMIC MUSIC GLOW ---
+      // We only want the glow to happen at the peak of the wave (wave > 0.8)
+      // and we scale that brightness by the current bass/mids.
+      const musicFactor = (bass + mids) * 0.5;
+      const intensity = Math.pow(wave, 4.0) * musicFactor; 
+      
+      tempColor.copy(baseRed).lerp(peakGlow, THREE.MathUtils.clamp(intensity, 0, 1));
+      meshRef.current.setColorAt(i, tempColor);
+    }
+
+    meshRef.current.instanceMatrix.needsUpdate = true;
+    if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh
+      ref={meshRef}
+      args={[hexGeometry, material, count]}
+      rotation={[0, Math.PI / 6, 0]}
+      position={[0, -45, 0]}
+    />
+  );
+}
+
+// ── Layer 3: Cyan orb — EXACTLY above the ripple center (dead center) ──────
+function CyanOrb({
+  audioData,
+  smoothBass,
+  smoothMids,
+}: {
+  audioData: Uint8Array | null;
+  smoothBass: React.MutableRefObject<number>;
+  smoothMids: React.MutableRefObject<number>;
+}) {
+  const groupRef = useRef<THREE.Group>(null!);
+  const coreRef = useRef<THREE.Mesh>(null!);
+  const coreMaterialRef = useRef<THREE.ShaderMaterial>(null!);
+
+  const coreGeometry = useMemo(() => new THREE.IcosahedronGeometry(18, 6), []);
+  const glowGeometry = useMemo(() => new THREE.SphereGeometry(20, 64, 64), []);
+
+  const coreUniforms = useMemo(
+    () => ({
+      uTime: { value: 0 },
+      uBass: { value: 0 },
+      uMids: { value: 0 },
+    }),
+    [],
+  );
+
+  const coreVertexShader = `
+    uniform float uTime;
+    uniform float uBass;
+    uniform float uMids;
+    varying vec3 vNormal;
+
+    void main() {
+      vec3 pos = position;
+      float distortion = sin(uTime * 4.8 + position.x * 7.0) * uBass * 1.25 +
+                         sin(uTime * 8.5 + position.y * 9.0) * uMids * 0.85;
+      pos += normal * distortion * 0.45;
+
+      vNormal = normal;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    }
+  `;
+
+  const coreFragmentShader = `
+    varying vec3 vNormal;
+    void main() {
+      vec3 cyan = vec3(0.0, 0.96, 1.0);
+      float rim = 1.0 - dot(vNormal, vec3(0.0, 0.0, 1.0));
+      rim = pow(rim, 2.8);
+      gl_FragColor = vec4(cyan + rim * 0.4, 1.0);
+    }
+  `;
+
+  useFrame((state) => {
+    if (coreMaterialRef.current) {
+      coreMaterialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
+      coreMaterialRef.current.uniforms.uBass.value = smoothBass.current;
+      coreMaterialRef.current.uniforms.uMids.value = smoothMids.current;
+    }
+
+    if (groupRef.current) {
+      const bounceHeight = 8.0; 
+      const bounceSpeed = 10.5;
+      groupRef.current.position.y = Math.sin(state.clock.elapsedTime * bounceSpeed) * (bounceHeight * smoothMids.current);
+      groupRef.current.rotation.y += 0.009 + smoothBass.current * 0.022;
+      groupRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.7) * 0.09 * smoothMids.current;
+      const pulseScale = 1.0 + smoothBass.current * 0.58;
+      groupRef.current.scale.setScalar(pulseScale);
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={[0, 0, 0]}>
+      <mesh ref={coreRef} geometry={coreGeometry}>
+        <shaderMaterial
+          ref={coreMaterialRef}
+          vertexShader={coreVertexShader}
+          fragmentShader={coreFragmentShader}
+          uniforms={coreUniforms}
+          wireframe={false}
+        />
+      </mesh>
+
+      <mesh geometry={glowGeometry}>
+        <meshBasicMaterial
+          color="#00ffff"
+          transparent
+          opacity={0.32}
+          blending={THREE.AdditiveBlending}
+          side={THREE.BackSide}
+          depthWrite={false}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+// ── Root scene component ────────────────────────────────────────────────────
+export default function HexTerrainCyanOrbScene({
   audioData,
 }: {
   audioData: Uint8Array | null;
@@ -332,70 +299,65 @@ export default function HyperdimensionalHexScene({
   const smoothMids = useRef(0);
   const smoothHighs = useRef(0);
 
-  // Time-based Bloom Event Refs
-  const bloomPhase = useRef(0);
-  const lastBloomTime = useRef(0);
-  const bloomActive = useRef(false);
+  // Initialize as a Vector3 to resolve TS2322 and TS2556
+  const sceneCenter = useMemo(() => new THREE.Vector3(0, -30, 0), []);
 
   useFrame((state, delta) => {
     const { bass, mids, highs } = getThreeBands(audioData);
 
-    // Smooth audio inputs
-    smoothBass.current = THREE.MathUtils.lerp(smoothBass.current, bass, delta * 12);
-    smoothMids.current = THREE.MathUtils.lerp(smoothMids.current, mids, delta * 8);
-    smoothHighs.current = THREE.MathUtils.lerp(smoothHighs.current, highs, delta * 16);
-
-    // 28-second Bloom Event Logic
-    const elapsed = state.clock.elapsedTime;
-    const cycleLength = 28;
-    const cyclePos = elapsed % cycleLength;
-
-    if (cyclePos < delta * 2 && elapsed - lastBloomTime.current > cycleLength * 0.5) {
-      lastBloomTime.current = elapsed;
-      bloomActive.current = true;
-    }
-
-    if (bloomActive.current) {
-      const age = elapsed - lastBloomTime.current;
-      if (age < 2.0) {
-        // Expand outward quickly
-        bloomPhase.current = THREE.MathUtils.lerp(bloomPhase.current, 1.0, delta * 4);
-      } else if (age < 6.0) {
-        // Gently contract back
-        bloomPhase.current = THREE.MathUtils.lerp(bloomPhase.current, 0.0, delta * 1.5);
-      } else {
-        bloomActive.current = false;
-      }
-    } else {
-      bloomPhase.current = THREE.MathUtils.lerp(bloomPhase.current, 0.0, delta * 2);
-    }
+    smoothBass.current = THREE.MathUtils.lerp(
+      smoothBass.current,
+      bass,
+      delta * 9,
+    );
+    smoothMids.current = THREE.MathUtils.lerp(
+      smoothMids.current,
+      mids,
+      delta * 8,
+    );
+    smoothHighs.current = THREE.MathUtils.lerp(
+      smoothHighs.current,
+      highs,
+      delta * 12,
+    );
   });
 
   return (
     <>
-      <color attach="background" args={["#000000"]} />
-      
-      <HexFractalCore 
-        audioData={audioData} 
-        smoothBass={smoothBass} 
-        smoothHighs={smoothHighs} 
-        bloomPhase={bloomPhase} 
-      />
-      
-      <JellyfishEntities 
-        audioData={audioData} 
-        smoothBass={smoothBass} 
-        smoothHighs={smoothHighs} 
-        bloomPhase={bloomPhase} 
-      />
-      
-      <OrbitControls
+      <color attach="background" args={["#03010c"]} />
+
+      <PerspectiveCamera
         makeDefault
-        autoRotate
-        autoRotateSpeed={0.6}
+        position={[0, 180, 300]}
+        fov={70}
+        // Passing the Vector3 directly satisfies the lookAt signature
+        onUpdate={(self) => self.lookAt(sceneCenter)}
+      />
+
+      <ambientLight intensity={0.18} />
+
+      <Stars audioData={audioData} smoothHighs={smoothHighs} />
+      <HexTerrain
+        audioData={audioData}
+        smoothBass={smoothBass}
+        smoothMids={smoothMids}
+      />
+      <CyanOrb
+        audioData={audioData}
+        smoothBass={smoothBass}
+        smoothMids={smoothMids}
+      />
+
+      <OrbitControls
+        makeDefault={false}
+        // Using the Vector3 object directly solves the "target" error
+        target={sceneCenter}
+        autoRotate={true}
+        autoRotateSpeed={0.15}
         enablePan={false}
-        minDistance={5}
-        maxDistance={60}
+        minDistance={70}
+        maxDistance={420}
+        maxPolarAngle={Math.PI * 0.86}
       />
     </>
   );
