@@ -187,7 +187,7 @@ function HexTerrain({
       ref={meshRef}
       args={[hexGeometry, material, count]}
       rotation={[0, Math.PI / 6, 0]}
-      position={[0, -45, 0]}
+      position={[0, -65, 0]}
     />
   );
 }
@@ -300,7 +300,7 @@ export default function HexTerrainCyanOrbScene({
   const smoothHighs = useRef(0);
 
   // Initialize as a Vector3 to resolve TS2322 and TS2556
-  const sceneCenter = useMemo(() => new THREE.Vector3(0, -30, 0), []);
+  const sceneCenter = useMemo(() => new THREE.Vector3(0, -100, 0), []);
 
   useFrame((state, delta) => {
     const { bass, mids, highs } = getThreeBands(audioData);

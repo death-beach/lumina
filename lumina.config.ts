@@ -26,7 +26,7 @@ const config: LuminaConfig = {
       src: "/tracks/Grateful.mp3",
       visual: {
         type: "reactive",
-        scene: "dimensional",
+        scene: "translation",
       },
     },
     {
@@ -44,7 +44,7 @@ const config: LuminaConfig = {
       src: "/tracks/worth it.mp3",
       visual: {
         type: "reactive",
-        scene: "mandala",
+        scene: "dimensional",
       },
     },
     {
