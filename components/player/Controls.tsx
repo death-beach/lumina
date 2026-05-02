@@ -3,6 +3,7 @@
 import { usePlayerStore } from "@/store/playerStore";
 import { usePlaylist } from "@/hooks/usePlaylist";
 import { useState } from "react";
+import { Howler } from "howler";
 
 export function Controls() {
   const isPlaying = usePlayerStore(s => s.isPlaying);
@@ -21,6 +22,14 @@ export function Controls() {
   const [dragProgress, setDragProgress] = useState(progress);
 
   const handlePlayPause = () => {
+    // Resume AudioContext synchronously within the user gesture.
+    // iOS Safari and Android Chrome start the AudioContext in a "suspended"
+    // state and only allow resume() when called directly inside a user
+    // gesture handler — any async hop (React state → effect → play) breaks
+    // that requirement, so we must do it here before handing off to the store.
+    if (Howler.ctx && Howler.ctx.state !== "running") {
+      Howler.ctx.resume();
+    }
     setIsPlaying(!isPlaying);
   };
 

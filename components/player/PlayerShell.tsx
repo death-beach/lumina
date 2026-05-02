@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
+import { Howler } from "howler";
 import { usePlayerStore } from "@/store/playerStore";
 import { usePlaylist } from "@/hooks/usePlaylist";
 import { AudioEngine } from "./AudioEngine";
@@ -23,6 +24,28 @@ export function PlayerShell() {
   const toggleLyrics = usePlayerStore(s => s.toggleLyrics);
   const { hasLyrics } = useLyrics();
   const { nextTrack, prevTrack } = usePlaylist();
+
+  // ── Mobile AudioContext unlock ────────────────────────────────────────────
+  // Belt-and-suspenders: any touch or click anywhere on the page will attempt
+  // to resume the AudioContext if it is still suspended. This covers cases
+  // that don't go through the play button (e.g. autoplay after track change,
+  // playlist tap, etc.). The listener is intentionally kept alive for the full
+  // session because the context can re-suspend after a phone call or tab switch.
+  useEffect(() => {
+    const unlockAudio = () => {
+      if (Howler.ctx && Howler.ctx.state !== "running") {
+        Howler.ctx.resume();
+      }
+    };
+
+    document.addEventListener("touchstart", unlockAudio, { passive: true });
+    document.addEventListener("click", unlockAudio, { passive: true });
+
+    return () => {
+      document.removeEventListener("touchstart", unlockAudio);
+      document.removeEventListener("click", unlockAudio);
+    };
+  }, []);
 
   // ── Idle / auto-hide UI ───────────────────────────────────────────────────
   const [isIdle, setIsIdle] = useState(false);
