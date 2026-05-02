@@ -15,7 +15,8 @@ import Mandala from "./Mandala";
 import AuroraPlanet from "./AuroraPlanet";
 import Prism from "./PrismBurst";
 import Translation from "./Translation";
-import Dimensional from "./Dimensional"
+import Dimensional from "./Dimensional";
+import Growth from "./Growth";
 
 const SCENE_MAP: Record<string, React.ComponentType<{ audioData: Uint8Array | null }>> = {
   particles: SongSingularity,
@@ -31,6 +32,7 @@ const SCENE_MAP: Record<string, React.ComponentType<{ audioData: Uint8Array | nu
   prism: Prism,
   translation: Translation,
   dimensional: Dimensional,
+  growth: Growth,
 };
 
 export function VisualizerManager() {

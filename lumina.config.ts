@@ -35,13 +35,13 @@ const config: LuminaConfig = {
       src: "/tracks/Rhythm 4 Change Inst.mp3",
       visual: {
         type: "reactive",
-        scene: "particles",
+        scene: "growth",
       },
     },
     {
       id: "track-03",
       title: "Worth It",
-      src: "/tracks/worth it.mp3",
+      src: "/tracks/DrunkOnTheMic_16.mp3",
       visual: {
         type: "reactive",
         scene: "dimensional",
