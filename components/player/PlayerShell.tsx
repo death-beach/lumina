@@ -13,6 +13,7 @@ import { LyricsPanel } from "./LyricsPanel";
 import { PlaylistRail } from "./PlaylistRail";
 import { VisualizerManager } from "../visualizer/VisualizerManager";
 import { useLyrics } from "@/hooks/useLyrics";
+import { useFullscreen } from "@/hooks/useFullscreen";
 import config from "@/lumina.config";
 
 const IDLE_TIMEOUT_MS = 3000;
@@ -24,6 +25,30 @@ export function PlayerShell() {
   const toggleLyrics = usePlayerStore(s => s.toggleLyrics);
   const { hasLyrics } = useLyrics();
   const { nextTrack, prevTrack } = usePlaylist();
+  const { isFullscreen, isSupported: isFullscreenSupported, toggle: toggleFullscreen } = useFullscreen();
+
+  // ── Mobile viewport height ────────────────────────────────────────────────
+  // iOS Safari changes the viewport height as the address bar shows/hides.
+  // We track the actual visible height via visualViewport and set --app-height
+  // so the shell always fits exactly without scrolling or clipping.
+  useEffect(() => {
+    const updateAppHeight = () => {
+      const h = window.visualViewport?.height ?? window.innerHeight;
+      document.documentElement.style.setProperty("--app-height", `${h}px`);
+    };
+
+    updateAppHeight(); // run immediately on mount
+
+    window.visualViewport?.addEventListener("resize", updateAppHeight);
+    window.visualViewport?.addEventListener("scroll", updateAppHeight);
+    window.addEventListener("resize", updateAppHeight);
+
+    return () => {
+      window.visualViewport?.removeEventListener("resize", updateAppHeight);
+      window.visualViewport?.removeEventListener("scroll", updateAppHeight);
+      window.removeEventListener("resize", updateAppHeight);
+    };
+  }, []);
 
   // ── Mobile AudioContext unlock ────────────────────────────────────────────
   // Belt-and-suspenders: any touch or click anywhere on the page will attempt
@@ -124,8 +149,11 @@ export function PlayerShell() {
 
   return (
     <div
-      className="relative w-full h-screen bg-background overflow-hidden"
-      style={{ cursor: isIdle ? "none" : "default" }}
+      className="relative w-full bg-background overflow-hidden"
+      style={{
+        height: "var(--app-height)",
+        cursor: isIdle ? "none" : "default",
+      }}
     >
       {/* Background Layer - Visualizer or Video */}
       <VisualizerManager />
@@ -165,6 +193,23 @@ export function PlayerShell() {
               >
                 📋
               </button>
+              {/* Fullscreen button — shown when supported (desktop + Android).
+                  iOS Safari doesn't support the Fullscreen API; users should
+                  use "Add to Home Screen" for a true fullscreen experience. */}
+              {isFullscreenSupported && (
+                <button
+                  onClick={toggleFullscreen}
+                  title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                  className={`p-2 rounded-full transition-colors ${
+                    isFullscreen
+                      ? "bg-accent text-background"
+                      : "bg-accent/20 hover:bg-accent/30"
+                  }`}
+                >
+                  {/* ⛶ = expand (enter fullscreen) — ⊡ = compress (exit) */}
+                  {isFullscreen ? "⊡" : "⛶"}
+                </button>
+              )}
               <button
                 onClick={config.storeUrl ? () => window.open(config.storeUrl, '_blank') : undefined}
                 className="p-2 rounded-full bg-accent/20 hover:bg-accent/30 transition-colors"

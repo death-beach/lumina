@@ -14,6 +14,7 @@ export function Controls() {
   const setVolume = usePlayerStore(s => s.setVolume);
   const toggleMute = usePlayerStore(s => s.toggleMute);
   const seekTo = usePlayerStore(s => s.seekTo);
+  const imperativePlay = usePlayerStore(s => s.imperativePlay);
 
   const { hasNext, hasPrev, nextTrack, prevTrack } = usePlaylist();
 
@@ -22,14 +23,28 @@ export function Controls() {
   const [dragProgress, setDragProgress] = useState(progress);
 
   const handlePlayPause = () => {
-    // Resume AudioContext synchronously within the user gesture.
-    // iOS Safari and Android Chrome start the AudioContext in a "suspended"
-    // state and only allow resume() when called directly inside a user
-    // gesture handler — any async hop (React state → effect → play) breaks
-    // that requirement, so we must do it here before handing off to the store.
+    // ── iOS / Android audio unlock ──────────────────────────────────────────
+    // Mobile browsers start the AudioContext in "suspended" state and only
+    // honour resume() when called SYNCHRONOUSLY inside a user gesture.
+    // Any async hop (React state → effect → play) loses the gesture scope.
+    //
+    // Step 1: Resume the AudioContext synchronously (required for Web Audio).
     if (Howler.ctx && Howler.ctx.state !== "running") {
       Howler.ctx.resume();
     }
+
+    // Step 2: If we're about to START playback, also call howl.play()
+    // synchronously right here — before React processes setIsPlaying.
+    // This is the critical iOS fix: the Howl must be started within the
+    // same synchronous call stack as the user gesture.
+    if (!isPlaying && imperativePlay) {
+      imperativePlay();
+    }
+
+    // Step 3: Sync React state so the rest of the app (UI, AudioEngine)
+    // stays consistent. AudioEngine's effect will call play() again if
+    // the howl isn't already playing — Howler ignores duplicate play() calls
+    // on an already-playing sound.
     setIsPlaying(!isPlaying);
   };
 

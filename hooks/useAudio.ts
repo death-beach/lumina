@@ -40,10 +40,26 @@ export function useAudio(src: string): UseAudioReturn {
 
   const rafRef = useRef<number | null>(null);
 
-  const { volume, isMuted, setProgress, setAudioContext, setAnalyserNode: setStoreAnalyser } = usePlayerStore();
+  const {
+    volume,
+    isMuted,
+    setProgress,
+    setAudioContext,
+    setAnalyserNode: setStoreAnalyser,
+    registerImperativePlay,
+  } = usePlayerStore();
 
   // ─── Analyser Setup ────────────────────────────────────────────────────────
   // Called once after the first successful load, when Howler.ctx exists.
+  //
+  // IMPORTANT: We tap Howler.masterGain NON-DESTRUCTIVELY.
+  //   - DO NOT call Howler.masterGain.disconnect() — that removes Howler's own
+  //     routing and can silence audio, especially on mobile Safari.
+  //   - We just connect masterGain → analyser as an extra branch.
+  //   - We do NOT connect analyser → destination; masterGain already routes
+  //     to destination via Howler's internal graph. The analyser acts as a
+  //     read-only observer; getByteFrequencyData() works without a downstream
+  //     destination connection.
   const ensureAnalyser = useCallback(() => {
     if (analyserConnectedRef.current) return; // already done
 
@@ -51,27 +67,17 @@ export function useAudio(src: string): UseAudioReturn {
       const ctx = Howler.ctx as AudioContext | null;
       if (!ctx) return;
 
-      // Resume the context if it was suspended by the browser autoplay policy
-      if (ctx.state === "suspended") {
-        ctx.resume().catch(() => undefined);
-      }
-
       setAudioContext(ctx);
 
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 512; // 256 frequency bins
       analyser.smoothingTimeConstant = 0.7;
 
-      // Connect through Howler's master gain (this is the original working approach)
       if (Howler.masterGain) {
-        // Disconnect any previous connections to avoid duplicate analysers
-        try {
-          Howler.masterGain.disconnect();
-        } catch {
-          // Ignore if not connected
-        }
+        // Non-destructive tap: add analyser as an extra branch from masterGain.
+        // Howler's own masterGain → destination route is left completely intact.
         Howler.masterGain.connect(analyser);
-        analyser.connect(ctx.destination);
+        // Do NOT connect analyser to ctx.destination — that would double output.
       }
 
       analyserConnectedRef.current = true;
@@ -145,6 +151,15 @@ export function useAudio(src: string): UseAudioReturn {
 
         // Wire up the analyser the first time we have a live AudioContext
         ensureAnalyser();
+
+        // Register the imperative play bridge so Controls can call howl.play()
+        // synchronously within the user gesture on iOS/Android.
+        registerImperativePlay(() => {
+          if (generationRef.current !== gen) return;
+          if (!howl.playing()) {
+            howl.play();
+          }
+        });
       },
 
       onloaderror: (_id, err) => {
@@ -153,6 +168,28 @@ export function useAudio(src: string): UseAudioReturn {
 
         console.error("Audio load error:", err);
         setError(`Failed to load audio: ${err}`);
+      },
+
+      // onplayerror fires when the browser blocks or rejects .play().
+      // Most commonly hit on mobile when AudioContext is still suspended.
+      // We attempt to resume the context and retry once.
+      onplayerror: (_id, err) => {
+        if (generationRef.current !== gen) return;
+        console.warn("[Lumina] onplayerror — attempting AudioContext resume & retry:", err);
+
+        const ctx = Howler.ctx as AudioContext | null;
+        if (ctx && ctx.state !== "running") {
+          ctx.resume().then(() => {
+            // Retry play after the context is running
+            if (generationRef.current === gen && howlRef.current && !howlRef.current.playing()) {
+              howlRef.current.play();
+            }
+          }).catch((resumeErr) => {
+            console.error("[Lumina] AudioContext.resume() failed:", resumeErr);
+          });
+        } else {
+          console.error("[Lumina] Audio play error (context running):", err);
+        }
       },
 
       onplay: () => {
@@ -195,6 +232,9 @@ export function useAudio(src: string): UseAudioReturn {
       // Invalidate this generation so any pending callbacks are ignored
       generationRef.current++;
 
+      // Clear the imperative play bridge for the outgoing track
+      registerImperativePlay(null);
+
       if (howlRef.current) {
         howlRef.current.off();
         howlRef.current.unload();
@@ -211,7 +251,10 @@ export function useAudio(src: string): UseAudioReturn {
 
   // ─── Playback controls ─────────────────────────────────────────────────────
   const play = useCallback(() => {
-    if (howlRef.current && isLoaded) {
+    // Guard against double-play: if the howl is already playing (e.g. because
+    // Controls called imperativePlay() synchronously within the user gesture),
+    // don't create a second concurrent sound node.
+    if (howlRef.current && isLoaded && !howlRef.current.playing()) {
       howlRef.current.play();
     }
   }, [isLoaded]);

@@ -20,6 +20,21 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* --app-height is set from JS (PlayerShell) via visualViewport to always
+   equal the *visible* viewport on iOS Safari (excludes browser chrome).
+   Falls back to 100dvh (dynamic viewport height, supported in all modern
+   browsers), then 100vh for legacy. */
+:root {
+  --app-height: 100dvh;
+}
+
+html, body {
+  height: 100%;
+  /* Using svh (small viewport = content always visible) prevents the layout
+     jumping when Safari's address bar scrolls away. */
+  min-height: 100svh;
+}
+
 body {
   background: var(--lumina-background);
   color: var(--foreground);

@@ -21,6 +21,11 @@ interface PlayerState {
   // Per-track durations (seconds), populated by Howler on load and Audio metadata probing
   trackDurations: Record<string, number>;
 
+  // Imperative play bridge — useAudio registers the active Howl's play fn here
+  // so Controls can call it synchronously within the user gesture (iOS fix).
+  imperativePlay: (() => void) | null;
+  registerImperativePlay: (fn: (() => void) | null) => void;
+
   // Actions
   setCurrentTrackIndex: (index: number) => void;
   setIsPlaying: (playing: boolean) => void;
@@ -48,6 +53,7 @@ interface PlayerState {
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
   // Initial state
+  imperativePlay: null,
   currentTrackIndex: 0,
   isPlaying: false,
   volume: 0.8,
@@ -61,6 +67,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   audioContext: null,
   analyserNode: null,
   trackDurations: {},
+
+  registerImperativePlay: (fn) => set({ imperativePlay: fn }),
 
   // Basic setters
   setCurrentTrackIndex: (index) =>
