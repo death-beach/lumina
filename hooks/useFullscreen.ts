@@ -42,11 +42,20 @@ function detectFullscreenSupport(): boolean {
  */
 export function useFullscreen(elementRef?: React.RefObject<HTMLElement | null>): UseFullscreenReturn {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  // Use a lazy initializer so support is detected synchronously at component
-  // mount — no effect or setState-in-effect needed.
-  const [isSupported] = useState<boolean>(detectFullscreenSupport);
+  // IMPORTANT: start as `false` on both server and first client render so the
+  // server-rendered HTML matches the initial client tree (no hydration mismatch).
+  // We then upgrade to the real value in an effect that only runs on the client.
+  // The fullscreen button will simply pop in once the page has hydrated.
+  const [isSupported, setIsSupported] = useState<boolean>(false);
 
   useEffect(() => {
+    // Intentionally setting state in an effect: this is the standard
+    // pattern for resolving an SSR/CSR feature-detection mismatch. The
+    // server has no `document`, so it must render with `isSupported=false`;
+    // we then upgrade to the real value once mounted on the client.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsSupported(detectFullscreenSupport());
+
     const handleChange = () => {
       const fsEl =
         document.fullscreenElement ||

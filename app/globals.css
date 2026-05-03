@@ -28,21 +28,46 @@
   --app-height: 100dvh;
 }
 
-html, body {
+/* ── Mobile "scroll-to-hide" trick ─────────────────────────────────────────
+   Modern Android Chrome and iOS Safari (landscape) auto-hide their URL bar
+   when a page is taller than the viewport AND the user has scrolled. We
+   make <html> 110vh tall but lock <body> to overflow:hidden so the page
+   appears fixed. PlayerShell.tsx then issues a window.scrollTo(0, 1) on
+   load + orientationchange, which triggers the chrome retraction without
+   the user ever seeing a scrollbar.
+
+   Effects per platform:
+   - Android Chrome: URL bar fully hidden ✅
+   - iPhone Safari landscape: address bar collapsed to compact pill ✅
+   - iPhone Safari portrait: top bar minimized; bottom toolbar remains
+     (Apple platform restriction — not bypassable in a browser tab) ⚠️
+   - Desktop: no visible effect ✅ */
+html {
+  height: 110vh;          /* enough overscroll room to trigger UI retract */
+  overflow: hidden;       /* never show a real scrollbar to the user */
+}
+
+body {
   height: 100%;
   /* Using svh (small viewport = content always visible) prevents the layout
      jumping when Safari's address bar scrolls away. */
   min-height: 100svh;
-}
-
-body {
   background: var(--lumina-background);
   color: var(--foreground);
   font-family: var(--lumina-font-display);
   margin: 0;
   padding: 0;
   overflow: hidden; /* Full-screen experience */
+  /* Disable iOS pull-to-refresh / overscroll bounce that would re-show chrome */
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+  /* Prevent unexpected text selection on long-press of UI buttons */
+  -webkit-user-select: none;
+  user-select: none;
+  /* Suppress iOS tap-highlight blue flash on play/skip buttons */
+  -webkit-tap-highlight-color: transparent;
 }
+
 
 /* Custom slider styles for Lumina controls */
 .slider::-webkit-slider-thumb {

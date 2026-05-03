@@ -151,15 +151,6 @@ export function useAudio(src: string): UseAudioReturn {
 
         // Wire up the analyser the first time we have a live AudioContext
         ensureAnalyser();
-
-        // Register the imperative play bridge so Controls can call howl.play()
-        // synchronously within the user gesture on iOS/Android.
-        registerImperativePlay(() => {
-          if (generationRef.current !== gen) return;
-          if (!howl.playing()) {
-            howl.play();
-          }
-        });
       },
 
       onloaderror: (_id, err) => {
@@ -222,6 +213,25 @@ export function useAudio(src: string): UseAudioReturn {
     });
 
     howlRef.current = howl;
+
+    // ── Register imperative play bridge IMMEDIATELY (before decode finishes) ──
+    // This MUST happen synchronously after `new Howl(...)`, NOT inside onload.
+    // On mobile, the user typically taps before the MP3 finishes decoding. If
+    // we wait for onload, `imperativePlay` is still null at tap time and the
+    // gesture-bound play call is lost.
+    //
+    // Howler safely queues `.play()` calls made before decode completes —
+    // it will start playback as soon as the audio is ready, and because the
+    // AudioContext was resumed inside the same user gesture, iOS allows it.
+    registerImperativePlay(() => {
+      if (generationRef.current !== gen) return;
+      // howl.play() before load → Howler queues it. After load → plays now.
+      // The .playing() check prevents a second concurrent play if the
+      // AudioEngine effect also fires play() once isLoaded flips true.
+      if (!howl.playing()) {
+        howl.play();
+      }
+    });
 
     return () => {
       // Cancel the RAF if the effect is re-running or unmounting

@@ -27,6 +27,13 @@ export function PlayerShell() {
   const { nextTrack, prevTrack } = usePlaylist();
   const { isFullscreen, isSupported: isFullscreenSupported, toggle: toggleFullscreen } = useFullscreen();
 
+  // ── iOS Safari detection ──────────────────────────────────────────────────
+  // The Fullscreen API "isSupported" check already excludes iOS Safari (it
+  // returns false there), so the fullscreen button hides correctly on iPhone.
+  // We track this explicitly to also tweak behaviour of the scroll-to-hide
+  // trick (iOS portrait cannot dismiss the bottom Safari toolbar — that's an
+  // Apple platform restriction; our trick still helps with the top address bar).
+
   // ── Mobile viewport height ────────────────────────────────────────────────
   // iOS Safari changes the viewport height as the address bar shows/hides.
   // We track the actual visible height via visualViewport and set --app-height
@@ -47,6 +54,40 @@ export function PlayerShell() {
       window.visualViewport?.removeEventListener("resize", updateAppHeight);
       window.visualViewport?.removeEventListener("scroll", updateAppHeight);
       window.removeEventListener("resize", updateAppHeight);
+    };
+  }, []);
+
+  // ── Mobile "scroll-to-hide" — collapse browser chrome on load ─────────────
+  // Companion to the html { height: 110vh; overflow: hidden } CSS.
+  // Issuing a tiny scroll triggers Android Chrome / iOS Safari to retract
+  // the URL bar. We re-fire on orientation change because rotating brings
+  // the chrome back. Desktop is unaffected (no chrome to hide).
+  useEffect(() => {
+    const hideUI = () => window.scrollTo(0, 1);
+
+    // Run a few times — first paint, after first frame, and after a short
+    // delay — because some mobile browsers reject the scroll if it lands
+    // before layout has stabilised.
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(setTimeout(hideUI, 0));
+    timers.push(setTimeout(hideUI, 100));
+    timers.push(setTimeout(hideUI, 500));
+
+    const onOrientationChange = () => {
+      // Address bar reappears on rotate; wait for layout settle then hide again.
+      setTimeout(hideUI, 300);
+      setTimeout(hideUI, 700);
+    };
+    window.addEventListener("orientationchange", onOrientationChange);
+
+    // Re-hide if the user taps anywhere — gives the chrome no excuse to linger.
+    const onFirstTouch = () => setTimeout(hideUI, 100);
+    document.addEventListener("touchstart", onFirstTouch, { passive: true, once: true });
+
+    return () => {
+      timers.forEach(clearTimeout);
+      window.removeEventListener("orientationchange", onOrientationChange);
+      document.removeEventListener("touchstart", onFirstTouch);
     };
   }, []);
 

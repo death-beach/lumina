@@ -23,28 +23,41 @@ export function Controls() {
   const [dragProgress, setDragProgress] = useState(progress);
 
   const handlePlayPause = () => {
-    // ── iOS / Android audio unlock ──────────────────────────────────────────
+    // ── iOS / Android audio unlock — must run inside the user gesture ───────
     // Mobile browsers start the AudioContext in "suspended" state and only
     // honour resume() when called SYNCHRONOUSLY inside a user gesture.
     // Any async hop (React state → effect → play) loses the gesture scope.
-    //
-    // Step 1: Resume the AudioContext synchronously (required for Web Audio).
+
+    // Step 1: Force Howler's AudioContext to exist + run.
+    // On a fresh page, Howler.ctx may still be null until the first Howl is
+    // created. Touching Howler.volume() lazy-initialises the context inside
+    // Howler without producing any sound, so the resume() that follows is
+    // guaranteed to have something to act on.
+    if (!Howler.ctx) {
+      try {
+        Howler.volume(Howler.volume());
+      } catch {
+        // ignore — best-effort lazy init
+      }
+    }
     if (Howler.ctx && Howler.ctx.state !== "running") {
+      // .resume() returns a promise but we DO NOT await it — the synchronous
+      // call inside the gesture is what unlocks iOS. The promise resolves later.
       Howler.ctx.resume();
     }
 
-    // Step 2: If we're about to START playback, also call howl.play()
-    // synchronously right here — before React processes setIsPlaying.
-    // This is the critical iOS fix: the Howl must be started within the
-    // same synchronous call stack as the user gesture.
+    // Step 2: If starting playback, call howl.play() synchronously here.
+    // imperativePlay is registered immediately on Howl construction (not inside
+    // onload), so it is reliably available the moment the user can tap.
+    // Howler queues plays made before decode completes and will start audio
+    // as soon as the file is ready — within the unlocked AudioContext.
     if (!isPlaying && imperativePlay) {
       imperativePlay();
     }
 
     // Step 3: Sync React state so the rest of the app (UI, AudioEngine)
-    // stays consistent. AudioEngine's effect will call play() again if
-    // the howl isn't already playing — Howler ignores duplicate play() calls
-    // on an already-playing sound.
+    // stays consistent. AudioEngine's effect will no-op the second play()
+    // because useAudio's play() guards with !howl.playing().
     setIsPlaying(!isPlaying);
   };
 
