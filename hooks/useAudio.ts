@@ -1,6 +1,33 @@
+// hooks/useAudio.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// Plays audio through Howler in HTML5-mode (Howler internally uses an
+// <audio> element).  This is critical on iPhone Safari:
+//
+//   - Web Audio output is routed to the iOS "Ringer" volume bucket and is
+//     therefore SILENCED when the silent switch is on.  This is what users
+//     reported as "audio doesn't play on iPhone".
+//   - HTML <audio> output is routed to the iOS "Media" volume bucket and
+//     ignores the silent switch — exactly like Spotify, Apple Music, and
+//     every other music player.
+//
+// Because we no longer use Web Audio at all, there is no AudioContext to
+// unlock and no AnalyserNode to wire up.  Visualizer reactivity comes from
+// pre-computed frequency data (see scripts/analyze-tracks.mjs and
+// hooks/useAudioData.ts) synchronised to the audio element's playback time
+// via the singleton ref in lib/playbackTime.ts.
+//
+// What this hook still does:
+//   - Loads / unloads tracks safely across rapid skips (generation counter +
+//     `.off()` before `.unload()` to prevent decode-cancel errors).
+//   - Drives a RAF-based progress poll so the seek bar and visualizer time
+//     reference stay in sync.
+//   - Exposes simple play / pause / seek / volume / mute / onEnd helpers.
+// ─────────────────────────────────────────────────────────────────────────────
+
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Howl, Howler } from "howler";
+import { Howl } from "howler";
 import { usePlayerStore } from "@/store/playerStore";
+import { playbackTime } from "@/lib/playbackTime";
 
 interface UseAudioReturn {
   play: () => void;
@@ -10,7 +37,6 @@ interface UseAudioReturn {
   mute: (muted: boolean) => void;
   duration: number;
   currentTime: number;
-  analyserNode: AnalyserNode | null;
   isLoaded: boolean;
   error: string | null;
   onEnd: (callback: () => void) => void;
@@ -18,169 +44,109 @@ interface UseAudioReturn {
 
 export function useAudio(src: string): UseAudioReturn {
   const howlRef = useRef<Howl | null>(null);
-  // Single slot for end callback — replaces rather than stacking listeners
+  // Single slot for the "track ended" callback — replaces rather than stacks.
   const endCallbackRef = useRef<(() => void) | null>(null);
 
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
 
   // Generation counter: incremented on every src change so stale async
-  // callbacks (retries, onload from an old track) can detect they're obsolete
-  // and bail out without touching the current howlRef.
+  // callbacks (onload from a previous track, retries, etc.) can detect they
+  // are obsolete and bail out without touching the current howlRef.
   const generationRef = useRef(0);
-
-  // Ensures we only wire the AnalyserNode tap once across the lifetime of
-  // the hook — Howler.masterGain is a persistent node and we only need one
-  // analyser connected to it.
-  const analyserConnectedRef = useRef(false);
-  const analyserNodeRef = useRef<AnalyserNode | null>(null);
-
   const rafRef = useRef<number | null>(null);
 
-  const {
-    volume,
-    isMuted,
-    setProgress,
-    setAudioContext,
-    setAnalyserNode: setStoreAnalyser,
-    registerImperativePlay,
-  } = usePlayerStore();
+  const { volume, isMuted, setProgress } = usePlayerStore();
 
-  // ─── Analyser Setup ────────────────────────────────────────────────────────
-  // Called once after the first successful load, when Howler.ctx exists.
-  //
-  // IMPORTANT: We tap Howler.masterGain NON-DESTRUCTIVELY.
-  //   - DO NOT call Howler.masterGain.disconnect() — that removes Howler's own
-  //     routing and can silence audio, especially on mobile Safari.
-  //   - We just connect masterGain → analyser as an extra branch.
-  //   - We do NOT connect analyser → destination; masterGain already routes
-  //     to destination via Howler's internal graph. The analyser acts as a
-  //     read-only observer; getByteFrequencyData() works without a downstream
-  //     destination connection.
-  const ensureAnalyser = useCallback(() => {
-    if (analyserConnectedRef.current) return; // already done
+  // ─── Progress polling ──────────────────────────────────────────────────────
+  // Polls the audio element's playback time on each animation frame while
+  // playing, updating both React state (for the seek bar) and the singleton
+  // playbackTime ref (read by useAudioData → visualizer).
+  const startProgressPoll = useCallback(
+    (howl: Howl) => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
 
-    try {
-      const ctx = Howler.ctx as AudioContext | null;
-      if (!ctx) return;
+      const poll = () => {
+        if (!howl.playing()) return;
+        const time = howl.seek() as number;
+        const dur = howl.duration();
 
-      setAudioContext(ctx);
+        playbackTime.current = time;
+        playbackTime.duration = dur;
 
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 512; // 256 frequency bins
-      analyser.smoothingTimeConstant = 0.7;
+        setCurrentTime(time);
+        if (dur > 0) setProgress(time / dur);
 
-      if (Howler.masterGain) {
-        // Non-destructive tap: add analyser as an extra branch from masterGain.
-        // Howler's own masterGain → destination route is left completely intact.
-        Howler.masterGain.connect(analyser);
-        // Do NOT connect analyser to ctx.destination — that would double output.
-      }
+        rafRef.current = requestAnimationFrame(poll);
+      };
 
-      analyserConnectedRef.current = true;
-      analyserNodeRef.current = analyser;
-      setAnalyserNode(analyser);
-      setStoreAnalyser(analyser);
-    } catch (err) {
-      console.warn("Web Audio API analyser setup failed:", err);
-    }
-  }, [setAudioContext, setStoreAnalyser]);
-
-  // ─── Progress Polling ──────────────────────────────────────────────────────
-  const startProgressPoll = useCallback((howl: Howl) => {
-    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-
-    const poll = () => {
-      if (!howl.playing()) return; // stop when paused / ended
-      const time = howl.seek() as number;
-      setCurrentTime(time);
-      setProgress(time / howl.duration());
       rafRef.current = requestAnimationFrame(poll);
-    };
+    },
+    [setProgress],
+  );
 
-    rafRef.current = requestAnimationFrame(poll);
-  }, [setProgress]);
-
-  // ─── Track Loading ─────────────────────────────────────────────────────────
+  // ─── Track loading ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!src) return;
 
-    // Invalidate any in-flight callbacks from the previous track
+    // Invalidate any in-flight callbacks from the previous track.
     const gen = ++generationRef.current;
 
-    // Stop any running progress poll
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
 
-    // CRITICAL: Clean teardown of previous Howl
-    // .off() MUST come BEFORE .unload() to prevent "Decoding audio data failed"
-    // errors when skipping tracks mid-decode.
+    // Clean teardown of the previous Howl.  `.off()` MUST come BEFORE
+    // `.unload()` to prevent "Decoding audio data failed" errors when the
+    // user skips tracks mid-decode.
     if (howlRef.current) {
-      howlRef.current.off(); // remove ALL event listeners first
-      howlRef.current.unload(); // then unload (this may trigger decode cancellation)
+      howlRef.current.off();
+      howlRef.current.unload();
       howlRef.current = null;
     }
 
-    // Reset per-track state
     setError(null);
     setIsLoaded(false);
     setDuration(0);
     setCurrentTime(0);
+    playbackTime.current = 0;
+    playbackTime.duration = 0;
 
     // ── Build the new Howl ──────────────────────────────────────────────────
-    // html5: false (Web Audio API mode) is REQUIRED for analyser reactivity
-    // This was the original working configuration.
+    // html5: true → Howler creates an <audio> element.  This is the iOS
+    // silent-switch fix.  Audio plays from the Media bucket regardless of
+    // whether the user has flipped the silent switch.
     const howl = new Howl({
       src: [src],
-      html5: false,          // ← restored for reactivity (critical)
+      html5: true,
       format: ["mp3", "wav", "ogg", "aac"],
       volume: isMuted ? 0 : volume,
+      // Hint to the browser: keep the buffer warm so play() responds quickly.
+      preload: true,
 
       onload: () => {
-        // Bail if the user has already skipped to a different track
         if (generationRef.current !== gen) return;
-
         setDuration(howl.duration());
+        playbackTime.duration = howl.duration();
         setIsLoaded(true);
         setError(null);
-
-        // Wire up the analyser the first time we have a live AudioContext
-        ensureAnalyser();
       },
 
       onloaderror: (_id, err) => {
-        // Bail if this callback is stale (user skipped before this loaded)
         if (generationRef.current !== gen) return;
-
-        console.error("Audio load error:", err);
+        console.error("[Lumina] Audio load error:", err);
         setError(`Failed to load audio: ${err}`);
       },
 
-      // onplayerror fires when the browser blocks or rejects .play().
-      // Most commonly hit on mobile when AudioContext is still suspended.
-      // We attempt to resume the context and retry once.
       onplayerror: (_id, err) => {
         if (generationRef.current !== gen) return;
-        console.warn("[Lumina] onplayerror — attempting AudioContext resume & retry:", err);
-
-        const ctx = Howler.ctx as AudioContext | null;
-        if (ctx && ctx.state !== "running") {
-          ctx.resume().then(() => {
-            // Retry play after the context is running
-            if (generationRef.current === gen && howlRef.current && !howlRef.current.playing()) {
-              howlRef.current.play();
-            }
-          }).catch((resumeErr) => {
-            console.error("[Lumina] AudioContext.resume() failed:", resumeErr);
-          });
-        } else {
-          console.error("[Lumina] Audio play error (context running):", err);
-        }
+        // With html5:true there's no AudioContext to resume; the most common
+        // cause is iOS blocking a play() that didn't originate in a user
+        // gesture.  Howler will retry on the next user-initiated play.
+        console.warn("[Lumina] Audio play error:", err);
       },
 
       onplay: () => {
@@ -214,36 +180,14 @@ export function useAudio(src: string): UseAudioReturn {
 
     howlRef.current = howl;
 
-    // ── Register imperative play bridge IMMEDIATELY (before decode finishes) ──
-    // This MUST happen synchronously after `new Howl(...)`, NOT inside onload.
-    // On mobile, the user typically taps before the MP3 finishes decoding. If
-    // we wait for onload, `imperativePlay` is still null at tap time and the
-    // gesture-bound play call is lost.
-    //
-    // Howler safely queues `.play()` calls made before decode completes —
-    // it will start playback as soon as the audio is ready, and because the
-    // AudioContext was resumed inside the same user gesture, iOS allows it.
-    registerImperativePlay(() => {
-      if (generationRef.current !== gen) return;
-      // howl.play() before load → Howler queues it. After load → plays now.
-      // The .playing() check prevents a second concurrent play if the
-      // AudioEngine effect also fires play() once isLoaded flips true.
-      if (!howl.playing()) {
-        howl.play();
-      }
-    });
-
     return () => {
-      // Cancel the RAF if the effect is re-running or unmounting
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
-      // Invalidate this generation so any pending callbacks are ignored
+      // Invalidate this generation so any pending callbacks are ignored.
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional ref
       generationRef.current++;
-
-      // Clear the imperative play bridge for the outgoing track
-      registerImperativePlay(null);
 
       if (howlRef.current) {
         howlRef.current.off();
@@ -261,9 +205,7 @@ export function useAudio(src: string): UseAudioReturn {
 
   // ─── Playback controls ─────────────────────────────────────────────────────
   const play = useCallback(() => {
-    // Guard against double-play: if the howl is already playing (e.g. because
-    // Controls called imperativePlay() synchronously within the user gesture),
-    // don't create a second concurrent sound node.
+    // Guard against double-play if some other code path already started it.
     if (howlRef.current && isLoaded && !howlRef.current.playing()) {
       howlRef.current.play();
     }
@@ -278,9 +220,10 @@ export function useAudio(src: string): UseAudioReturn {
       if (!howlRef.current || !isLoaded) return;
       howlRef.current.seek(time);
       setCurrentTime(time);
+      playbackTime.current = time;
       if (duration > 0) setProgress(time / duration);
     },
-    [isLoaded, duration, setProgress]
+    [isLoaded, duration, setProgress],
   );
 
   const setVolumeLevel = useCallback((vol: number) => {
@@ -291,29 +234,8 @@ export function useAudio(src: string): UseAudioReturn {
     howlRef.current?.mute(muted);
   }, []);
 
-  // Set the end callback — replaces any previous one, never stacks
   const onEnd = useCallback((callback: () => void) => {
     endCallbackRef.current = callback;
-  }, []);
-
-  // ─── Cleanup on unmount ────────────────────────────────────────────────────
-  useEffect(() => {
-    return () => {
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-
-      // Disconnect the analyser tap from masterGain
-      if (analyserNodeRef.current && Howler.masterGain) {
-        try {
-          Howler.masterGain.disconnect(analyserNodeRef.current);
-        } catch {
-          // Ignore "node not connected" errors
-        }
-      }
-      setAnalyserNode(null);
-      setStoreAnalyser(null);
-      analyserConnectedRef.current = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {
@@ -324,7 +246,6 @@ export function useAudio(src: string): UseAudioReturn {
     mute: muteAudio,
     duration,
     currentTime,
-    analyserNode,
     isLoaded,
     error,
     onEnd,

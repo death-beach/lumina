@@ -15,16 +15,8 @@ interface PlayerState {
   isStoreOpen: boolean;
   isLyricsVisible: boolean;
 
-  // Audio analysis
-  audioContext: AudioContext | null;
-  analyserNode: AnalyserNode | null;
-  // Per-track durations (seconds), populated by Howler on load and Audio metadata probing
+  // Per-track durations (seconds), populated by Howler on load
   trackDurations: Record<string, number>;
-
-  // Imperative play bridge — useAudio registers the active Howl's play fn here
-  // so Controls can call it synchronously within the user gesture (iOS fix).
-  imperativePlay: (() => void) | null;
-  registerImperativePlay: (fn: (() => void) | null) => void;
 
   // Actions
   setCurrentTrackIndex: (index: number) => void;
@@ -37,8 +29,6 @@ interface PlayerState {
   togglePlaylist: () => void;
   toggleStore: () => void;
   toggleLyrics: () => void;
-  setAudioContext: (ctx: AudioContext | null) => void;
-  setAnalyserNode: (node: AnalyserNode | null) => void;
   setTrackDuration: (trackId: string, duration: number) => void;
 
   // Convenience actions
@@ -53,7 +43,6 @@ interface PlayerState {
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
   // Initial state
-  imperativePlay: null,
   currentTrackIndex: 0,
   isPlaying: false,
   volume: 0.8,
@@ -64,11 +53,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   isPlaylistOpen: false,
   isStoreOpen: false,
   isLyricsVisible: false,
-  audioContext: null,
-  analyserNode: null,
   trackDurations: {},
-
-  registerImperativePlay: (fn) => set({ imperativePlay: fn }),
 
   // Basic setters
   setCurrentTrackIndex: (index) =>
@@ -82,8 +67,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   togglePlaylist: () => set((state) => ({ isPlaylistOpen: !state.isPlaylistOpen })),
   toggleStore: () => set((state) => ({ isStoreOpen: !state.isStoreOpen })),
   toggleLyrics: () => set((state) => ({ isLyricsVisible: !state.isLyricsVisible })),
-  setAudioContext: (ctx) => set({ audioContext: ctx }),
-  setAnalyserNode: (node) => set({ analyserNode: node }),
   setTrackDuration: (trackId, duration) =>
     set((state) => ({
       trackDurations: { ...state.trackDurations, [trackId]: duration },

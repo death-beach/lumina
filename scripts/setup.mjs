@@ -286,6 +286,26 @@ const storeUrl = await ask("Store URL", "");
 print("");
 await askYesNo("Done adding your files?", true);
 
+// ── Pre-compute audio frequency data ─────────────────────────────────────────
+// Generates a `.frames.bin` next to each MP3 so the visualizer can react to
+// the music on iPhone Safari (where Web Audio's live AnalyserNode would
+// silence audio when the silent switch is on).
+//
+// Idempotent: tracks whose .bin is already up-to-date are skipped.  Failures
+// for individual tracks are non-fatal (audio still plays; visualizer falls
+// back to stillness for that track).
+if (audioTracks.length > 0) {
+  print("");
+  header("Analyzing your audio");
+  dim("  This produces the data the visualizer reacts to. ~1 second per minute of music.");
+  try {
+    execSync("node scripts/analyze-tracks.mjs", { cwd: ROOT, stdio: "inherit" });
+  } catch {
+    warn("Audio analysis hit an error. Audio will still play; visualizer may be quiet.");
+    warn("You can re-run analysis any time with:  npm run analyze");
+  }
+}
+
 // ── Build config ──────────────────────────────────────────────────────────────
 const configContent = generateConfig({ artistName, albumTitle, trackEntries, storeUrl });
 

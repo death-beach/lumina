@@ -2,68 +2,47 @@
 
 import { usePlayerStore } from "@/store/playerStore";
 import { usePlaylist } from "@/hooks/usePlaylist";
+import { useFullscreen } from "@/hooks/useFullscreen";
 import { useState } from "react";
-import { Howler } from "howler";
 
 export function Controls() {
-  const isPlaying = usePlayerStore(s => s.isPlaying);
-  const volume = usePlayerStore(s => s.volume);
-  const isMuted = usePlayerStore(s => s.isMuted);
-  const progress = usePlayerStore(s => s.progress);
-  const setIsPlaying = usePlayerStore(s => s.setIsPlaying);
-  const setVolume = usePlayerStore(s => s.setVolume);
-  const toggleMute = usePlayerStore(s => s.toggleMute);
-  const seekTo = usePlayerStore(s => s.seekTo);
-  const imperativePlay = usePlayerStore(s => s.imperativePlay);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const volume = usePlayerStore((s) => s.volume);
+  const isMuted = usePlayerStore((s) => s.isMuted);
+  const progress = usePlayerStore((s) => s.progress);
+  const setIsPlaying = usePlayerStore((s) => s.setIsPlaying);
+  const setVolume = usePlayerStore((s) => s.setVolume);
+  const toggleMute = usePlayerStore((s) => s.toggleMute);
+  const seekTo = usePlayerStore((s) => s.seekTo);
 
   const { hasNext, hasPrev, nextTrack, prevTrack } = usePlaylist();
+
+  // Fullscreen lives next to the skip-forward button. `isSupported` is true
+  // on desktop (all major browsers) and Android; false on iOS Safari, where
+  // the Fullscreen API is not exposed to web pages — so the button hides
+  // itself there instead of mocking a feature that won't fire.
+  const {
+    isFullscreen,
+    isSupported: isFullscreenSupported,
+    toggle: toggleFullscreen,
+  } = useFullscreen();
 
   // Local state for drag-to-seek
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(progress);
 
+  // ── Play / pause ──────────────────────────────────────────────────────────
+  // Audio plays through an HTML <audio> element (Howler html5:true).  iOS
+  // Safari is happy to honour audioElement.play() driven from a React state
+  // change, as long as the originating event is a user gesture — which a
+  // button onClick always is.  No AudioContext to unlock, no imperative
+  // bridge, no synchronous-gesture acrobatics required.
   const handlePlayPause = () => {
-    // ── iOS / Android audio unlock — must run inside the user gesture ───────
-    // Mobile browsers start the AudioContext in "suspended" state and only
-    // honour resume() when called SYNCHRONOUSLY inside a user gesture.
-    // Any async hop (React state → effect → play) loses the gesture scope.
-
-    // Step 1: Force Howler's AudioContext to exist + run.
-    // On a fresh page, Howler.ctx may still be null until the first Howl is
-    // created. Touching Howler.volume() lazy-initialises the context inside
-    // Howler without producing any sound, so the resume() that follows is
-    // guaranteed to have something to act on.
-    if (!Howler.ctx) {
-      try {
-        Howler.volume(Howler.volume());
-      } catch {
-        // ignore — best-effort lazy init
-      }
-    }
-    if (Howler.ctx && Howler.ctx.state !== "running") {
-      // .resume() returns a promise but we DO NOT await it — the synchronous
-      // call inside the gesture is what unlocks iOS. The promise resolves later.
-      Howler.ctx.resume();
-    }
-
-    // Step 2: If starting playback, call howl.play() synchronously here.
-    // imperativePlay is registered immediately on Howl construction (not inside
-    // onload), so it is reliably available the moment the user can tap.
-    // Howler queues plays made before decode completes and will start audio
-    // as soon as the file is ready — within the unlocked AudioContext.
-    if (!isPlaying && imperativePlay) {
-      imperativePlay();
-    }
-
-    // Step 3: Sync React state so the rest of the app (UI, AudioEngine)
-    // stays consistent. AudioEngine's effect will no-op the second play()
-    // because useAudio's play() guards with !howl.playing().
     setIsPlaying(!isPlaying);
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value);
-    setVolume(newVolume);
+    setVolume(parseFloat(e.target.value));
   };
 
   // Drag-to-seek handlers
@@ -83,15 +62,13 @@ export function Controls() {
   const handleSeekEnd = () => {
     if (isDragging) {
       setIsDragging(false);
-      // Commit the seek only on pointer release to avoid hammering the decoder
+      // Commit the seek only on pointer release to avoid hammering the decoder.
       seekTo(dragProgress);
     }
   };
 
-  // Skip buttons are disabled only when there are no more tracks.
-  // The core audio system now handles rapid skipping safely without
-  // needing the isTransitioning lock (thanks to .off() before .unload()
-  // and the generation counter).
+  // Skip buttons are disabled only when there are no more tracks.  The
+  // generation counter inside useAudio handles rapid skipping safely.
   const prevDisabled = !hasPrev;
   const nextDisabled = !hasNext;
 
@@ -121,6 +98,21 @@ export function Controls() {
         >
           ⏭
         </button>
+
+        {isFullscreenSupported && (
+          <button
+            onClick={toggleFullscreen}
+            title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+            className={`p-3 rounded-full transition-colors ${
+              isFullscreen
+                ? "bg-accent text-background"
+                : "bg-accent/20 hover:bg-accent/30"
+            }`}
+          >
+            {/* ⛶ = expand (enter fullscreen) — ⊡ = compress (exit) */}
+            {isFullscreen ? "⊡" : "⛶"}
+          </button>
+        )}
       </div>
 
       {/* Progress Bar */}

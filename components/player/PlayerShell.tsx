@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Howler } from "howler";
 import { usePlayerStore } from "@/store/playerStore";
 import { usePlaylist } from "@/hooks/usePlaylist";
 import { AudioEngine } from "./AudioEngine";
@@ -13,7 +12,6 @@ import { LyricsPanel } from "./LyricsPanel";
 import { PlaylistRail } from "./PlaylistRail";
 import { VisualizerManager } from "../visualizer/VisualizerManager";
 import { useLyrics } from "@/hooks/useLyrics";
-import { useFullscreen } from "@/hooks/useFullscreen";
 import config from "@/lumina.config";
 
 const IDLE_TIMEOUT_MS = 3000;
@@ -25,14 +23,6 @@ export function PlayerShell() {
   const toggleLyrics = usePlayerStore(s => s.toggleLyrics);
   const { hasLyrics } = useLyrics();
   const { nextTrack, prevTrack } = usePlaylist();
-  const { isFullscreen, isSupported: isFullscreenSupported, toggle: toggleFullscreen } = useFullscreen();
-
-  // ── iOS Safari detection ──────────────────────────────────────────────────
-  // The Fullscreen API "isSupported" check already excludes iOS Safari (it
-  // returns false there), so the fullscreen button hides correctly on iPhone.
-  // We track this explicitly to also tweak behaviour of the scroll-to-hide
-  // trick (iOS portrait cannot dismiss the bottom Safari toolbar — that's an
-  // Apple platform restriction; our trick still helps with the top address bar).
 
   // ── Mobile viewport height ────────────────────────────────────────────────
   // iOS Safari changes the viewport height as the address bar shows/hides.
@@ -91,29 +81,9 @@ export function PlayerShell() {
     };
   }, []);
 
-  // ── Mobile AudioContext unlock ────────────────────────────────────────────
-  // Belt-and-suspenders: any touch or click anywhere on the page will attempt
-  // to resume the AudioContext if it is still suspended. This covers cases
-  // that don't go through the play button (e.g. autoplay after track change,
-  // playlist tap, etc.). The listener is intentionally kept alive for the full
-  // session because the context can re-suspend after a phone call or tab switch.
-  useEffect(() => {
-    const unlockAudio = () => {
-      if (Howler.ctx && Howler.ctx.state !== "running") {
-        Howler.ctx.resume();
-      }
-    };
-
-    document.addEventListener("touchstart", unlockAudio, { passive: true });
-    document.addEventListener("click", unlockAudio, { passive: true });
-
-    return () => {
-      document.removeEventListener("touchstart", unlockAudio);
-      document.removeEventListener("click", unlockAudio);
-    };
-  }, []);
-
   // ── Idle / auto-hide UI ───────────────────────────────────────────────────
+  // (No AudioContext-unlock listener needed — audio plays through an HTML
+  // <audio> element via Howler html5:true, which has no AudioContext.)
   const [isIdle, setIsIdle] = useState(false);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -234,23 +204,6 @@ export function PlayerShell() {
               >
                 📋
               </button>
-              {/* Fullscreen button — shown when supported (desktop + Android).
-                  iOS Safari doesn't support the Fullscreen API; users should
-                  use "Add to Home Screen" for a true fullscreen experience. */}
-              {isFullscreenSupported && (
-                <button
-                  onClick={toggleFullscreen}
-                  title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-                  className={`p-2 rounded-full transition-colors ${
-                    isFullscreen
-                      ? "bg-accent text-background"
-                      : "bg-accent/20 hover:bg-accent/30"
-                  }`}
-                >
-                  {/* ⛶ = expand (enter fullscreen) — ⊡ = compress (exit) */}
-                  {isFullscreen ? "⊡" : "⛶"}
-                </button>
-              )}
               <button
                 onClick={config.storeUrl ? () => window.open(config.storeUrl, '_blank') : undefined}
                 className="p-2 rounded-full bg-accent/20 hover:bg-accent/30 transition-colors"

@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "analyze": "node scripts/analyze-tracks.mjs",
+    "prebuild": "node scripts/analyze-tracks.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -31,9 +33,11 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "audio-decode": "^3.10.1",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "fft.js": "^4.0.4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
