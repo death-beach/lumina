@@ -41,7 +41,7 @@ const config: LuminaConfig = {
     {
       id: "track-03",
       title: "Drunk On The Beat",
-      src: "/tracks/DrunkOnTheMic_16.mp3",
+      src: "/tracks/DrunkOnTheMic_17.mp3",
       visual: {
         type: "reactive",
         scene: "dimensional",
