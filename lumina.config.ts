@@ -5,11 +5,11 @@ import type { LuminaConfig } from "@/lib/config";
 
 const config: LuminaConfig = {
   artist: {
-    name: "Artist Name",
+    name: "Death Beach",
   },
 
   album: {
-    title: "Title",
+    title: "Test Album",
   },
 
   theme: {
@@ -22,23 +22,77 @@ const config: LuminaConfig = {
   tracks: [
     {
       id: "track-01",
-      title: "track one",
-      src: "/tracks/track1.mp3",
+      title: "Test Track 1",
+      src: "/tracks/Trap(ped).mp3",
       visual: {
         type: "reactive",
         scene: "translation",
       },
+      lyrics: {
+        type: "timed",
+        src: "/lyrics/track1.lrc",
+      },
     },
     {
       id: "track-02",
-      title: "track two",
-      src: "/tracks/track2.mp3",
+      title: "Change",
+      src: "/tracks/Rhythm 4 Change Inst.mp3",
       visual: {
         type: "reactive",
         scene: "particles",
       },
+      lyrics: {
+        type: "static",
+        text: "These are lyrics for your song\nThey are static\nThey are immersive\nTry it out",
+      },
+    },
+    {
+      id: "track-03",
+      title: "Outlaw",
+      visual: {
+        type: "video",
+        src: "https://youtu.be/cpVPE_BQXEI?si=mVSdci0ACXLOtzJY",
+        loop: false,
+      },
+    },
+    {
+      id: "track-04",
+      title: "Worth It",
+      src: "/tracks/worth it.mp3",
+      visual: {
+        type: "reactive",
+        scene: "dimensional",
+      },
+    },
+    {
+      id: "track-05",
+      title: "Last Call",
+      src: "/tracks/LAST CALL PROD. BY DEATH BEACH.mp3",
+      visual: {
+        type: "reactive",
+        scene: "mandala",
+      },
+    },
+    {
+      id: "track-06",
+      title: "Other Side",
+      src: "/tracks/The other side_5.mp3",
+      visual: {
+        type: "reactive",
+        scene: "flower",
+      },
+    },
+    {
+      id: "track-07",
+      title: "Trap(ped)",
+      src: "/tracks/Trap(ped).mp3",
+      visual: {
+        type: "reactive",
+        scene: "auroraplanet",
+      },
     }
   ],
+  storeUrl: "deathbeachstudio.com",
 
   features: {
     showPlaylist: true,
