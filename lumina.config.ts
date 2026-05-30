@@ -5,11 +5,11 @@ import type { LuminaConfig } from "@/lib/config";
 
 const config: LuminaConfig = {
   artist: {
-    name: "Death Beach",
+    name: "Artist Name",
   },
 
   album: {
-    title: "The Fall Ahead",
+    title: "Title",
   },
 
   theme: {
@@ -22,8 +22,8 @@ const config: LuminaConfig = {
   tracks: [
     {
       id: "track-01",
-      title: "Grapefruit",
-      src: "/tracks/Grateful.mp3",
+      title: "track one",
+      src: "/tracks/track1.mp3",
       visual: {
         type: "reactive",
         scene: "translation",
@@ -31,33 +31,14 @@ const config: LuminaConfig = {
     },
     {
       id: "track-02",
-      title: "Change",
-      src: "/tracks/Rhythm 4 Change Inst.mp3",
+      title: "track two",
+      src: "/tracks/track2.mp3",
       visual: {
         type: "reactive",
-        scene: "growth",
-      },
-    },
-    {
-      id: "track-03",
-      title: "Drunk On The Beat",
-      src: "/tracks/DrunkOnTheMic_17.mp3",
-      visual: {
-        type: "reactive",
-        scene: "dimensional",
-      },
-    },
-    {
-      id: "track-04",
-      title: "Other Side",
-      src: "/tracks/The other side_5.mp3",
-      visual: {
-        type: "reactive",
-        scene: "flower",
+        scene: "particles",
       },
     }
   ],
-  storeUrl: "deathbeachstudio.com",
 
   features: {
     showPlaylist: true,
