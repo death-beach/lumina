@@ -4,7 +4,7 @@ Lumina is a visual music player that turns your songs into immersive experiences
 
 ## ⚡ Quick Start
 
-1. **Get Lumina:** Clone from https://github.com/death-beach/lumina.git
+1. **Get Lumina:** Click "Fork" at https://github.com/death-beach/lumina to make your own copy, then clone your fork.
 2. **Run the setup wizard**
 3. **Enter your artist name, song info, and lyrics**
 4. **Add your music and video files**
@@ -22,16 +22,14 @@ You'll need:
 - **Node.js 18 or higher** (free download from nodejs.org)
 - **A GitHub account** (free)
 - **A Vercel account** (free)
+- **VS Code** (free)
 - **See Tips and Features section on using visualizer prompts**
 
 ## Setup Your Project
 
-1. **Clone the repository:**
-
-   ```bash
-   git clone https://github.com/death-beach/lumina.git
-   cd lumina
-   ```
+1. **Fork and Clone the repository:**
+   - Go to https://github.com/death-beach/lumina and click **Fork** (top right) to create a copy on your account.
+   - Open VSCode, sign into GitHub, click **Clone Repository**, and select your new `lumina` fork.
 
 2. **Install dependencies:**
 
