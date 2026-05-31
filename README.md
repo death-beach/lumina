@@ -16,9 +16,9 @@ Lumina is a visual music player that turns your songs into immersive experiences
 
 You'll need:
 
-- **Your music files** (MP3s, MP4s for videos)
+- **Your music files** (MP3s, links for official videos)
 - **Track list**
-- **Optional:** lyrics (timed or not), MP4 video files, store URL
+- **Optional:** lyrics (timed or not), store URL
 - **[Node.js](https://nodejs.org/) 18 or higher** (free download) *Install before VS Code*
 - **A [GitHub](https://github.com/) account** (free)
 - **A [Vercel](https://vercel.com/) account** (free)
