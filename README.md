@@ -19,10 +19,10 @@ You'll need:
 - **Your music files** (MP3s, MP4s for videos)
 - **Track list**
 - **Optional:** lyrics (timed or not), MP4 video files, store URL
-- **Node.js 18 or higher** (free download from nodejs.org)
-- **A GitHub account** (free)
-- **A Vercel account** (free)
-- **VS Code** (free)
+- **[Node.js](https://nodejs.org/) 18 or higher** (free download) *Install before VS Code*
+- **A [GitHub](https://github.com/) account** (free)
+- **A [Vercel](https://vercel.com/) account** (free)
+- **[VS Code](https://code.visualstudio.com/)** (free)
 - **See Tips and Features section on using visualizer prompts**
 
 ## Setup Your Project
@@ -31,16 +31,10 @@ You'll need:
    - Go to https://github.com/death-beach/lumina and click **Fork** (top right) to create a copy on your account.
    - Open VSCode, sign into GitHub, click **Clone Repository**, and select your new `lumina` fork.
 
-2. **Install dependencies:**
-
+2. **Run the setup wizard:**
+   Open the terminal in VS Code (**Terminal > New Terminal**) and run:
    ```bash
-   npm install
-   ```
-
-3. **Run the setup wizard:**
-
-   ```bash
-   npm run setup
+      npm install && npm run setup
    ```
 
    This will ask you for your artist name, album details, track names, and lyrics. **You can use any filenames for your music files** — the wizard will tell you exactly when to name your song and when to enter in the file name.
@@ -71,16 +65,13 @@ _To change the visualizers for your songs, see the section below on Visualizers_
 
 ## Deploy to the Web
 
-1. **Push to GitHub:**
-
-   ```bash
-   git add .
-   git commit -m "my tracks"
-   git push
-   ```
+1. **Push future updates to GitHub:**
+   - Click the **Source Control** icon on the left side of VS Code (looks like 3 little branches).
+   - Type a quick message (like "updated songs") in the box and click **Commit**.
+   - Click **Sync Changes** right after.
 
 2. **Deploy on Vercel:**
-   - Go to [vercel.com](https://vercel.com)
+   - Go to [Vercel](https://vercel.com)
    - Click "Import Project"
    - Connect your GitHub repository
    - Deploy! (_choose step 3 or 4!_)
