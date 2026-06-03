@@ -134,7 +134,7 @@ export default function Flower({ audioData }: { audioData: Uint8Array | null }) 
         // Smooth activation over 3s — keeps the original wave character while
         // preventing the hard if(>25) snap from the initial sequence.
         float waveActive = smoothstep(24.0, 27.0, uTime);
-        float wave = sin(length(pos.xy) * 0.8 - uTime) * 1.5;
+        float wave = sin(length(pos.xy) * 0.8 + uTime) * 1.5;
         pos.z += wave * waveActive * uAudioActive * (1.0 + uBass) * uBreath;
 
         if (uAudioActive > 0.0 && uBass > 0.45) {
